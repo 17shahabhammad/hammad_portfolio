@@ -19,16 +19,11 @@ jobs:
       pages: write
       id-token: write
     runs-on: ubuntu-latest
-
-  deploy:
-    permissions:
-      pages: write
-      id-token: write
     steps:
       - name: Check out portfolio source
         uses: actions/checkout@v4
 
-      - name: Download private-source-free image bundle asset
+      - name: Download image-only bundle from the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,6 +52,9 @@ jobs:
           path: dist
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
