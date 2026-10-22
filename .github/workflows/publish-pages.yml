@@ -14,7 +14,16 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
+
+  deploy:
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Check out portfolio source
         uses: actions/checkout@v4
