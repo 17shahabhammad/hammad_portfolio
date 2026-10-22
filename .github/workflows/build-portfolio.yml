@@ -42,7 +42,20 @@ jobs:
           curl --fail --location --silent --show-error --retry 3 --retry-delay 2 \
             "$download_url" --output /tmp/had-image-packages.zip
           mkdir -p /tmp/had-packages _site
-          unzip -q /tmp/had-image-packages.zip -d /tmp/had-packages
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          outer = Path("/tmp/had-image-packages.zip")
+          dest = Path("/tmp/had-packages")
+          with ZipFile(outer) as archive:
+              bundles = [item for item in archive.infolist()
+                         if not item.is_dir() and item.filename.lower().endswith(".zip")]
+              for item in bundles:
+                  name = item.filename.replace("\\", "/").rsplit("/", 1)[-1]
+                  if name:
+                      (dest / name).write_bytes(archive.read(item))
+          print(f"Extracted {len(list(dest.glob('*.zip')))} inner ZIP bundles.")
+          PY
 
       - name: Assemble static site from image packages
         shell: bash
