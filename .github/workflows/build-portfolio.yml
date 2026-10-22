@@ -89,6 +89,14 @@ jobs:
             exit 1
           fi
 
+      - name: Upload standalone review package
+        uses: actions/upload-artifact@v4
+        with:
+          name: had-architect-preview
+          path: _site/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Prepare Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
