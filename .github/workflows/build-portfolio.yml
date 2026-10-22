@@ -1,0 +1,99 @@
+name: Build and publish HAD Architect portfolio
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.build-site'
+      - '.publish-site'
+      - 'index.html'
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_ASSETS_URL: 'https://www.dropbox.com/scl/fo/2rdu0h94xpwcb62lazkxd/AH2dTxjQp8UbeYQujEyMrmw?rlkey=15dummfaq9x5hnugp4qtgne79&dl=0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.publish-state.outputs.publish }}
+    steps:
+      - name: Check out portfolio source
+        uses: actions/checkout@v4
+
+      - name: Record publication approval state
+        id: publish-state
+        shell: bash
+        run: |
+          if [[ -f .publish-site ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download image-only Dropbox folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_url="${IMAGE_ASSETS_URL/dl=0/dl=1}"
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 2 \
+            "$download_url" --output /tmp/had-image-packages.zip
+          mkdir -p /tmp/had-packages _site
+          unzip -q /tmp/had-image-packages.zip -d /tmp/had-packages
+
+      - name: Assemble static site from image packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(find /tmp/had-packages -type f -name '*.zip' | sort)
+          if [[ "${#packages[@]}" -ne 14 ]]; then
+            echo "Expected 14 image-only ZIP packages; found ${#packages[@]}." >&2
+            exit 1
+          fi
+          for package in "${packages[@]}"; do
+            unzip -oq "$package" -d _site
+          done
+          cp index.html _site/index.html
+          [[ -f _site/assets/had-logo.jpg ]]
+          [[ -f _site/assets/04-cover.jpg ]]
+          [[ -f _site/pages/01-sedra-gate/page-028.png ]]
+          count="$(find _site/pages -type f -name 'page-*.png' | wc -l | tr -d ' ')"
+          if [[ "$count" != "541" ]]; then
+            echo "Expected 541 full-page sheet images; found $count." >&2
+            exit 1
+          fi
+          if find _site -type f -iname '*.pdf' | grep -q .; then
+            echo "Unexpected PDF found in public site package; refusing to publish original PDFs." >&2
+            exit 1
+          fi
+          size_mb="$(du -sm _site | cut -f1)"
+          echo "Validated $count drawing images; generated site size: ${size_mb} MB."
+          if (( size_mb >= 1024 )); then
+            echo "Site exceeds the 1 GB GitHub Pages limit." >&2
+            exit 1
+          fi
+
+      - name: Prepare Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: needs.build.outputs.publish == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
