@@ -109,8 +109,8 @@ jobs:
           crop_render("pages/06-emaar-villa/page-001.png", (340, 115, 1015, 475), "06-cover.jpg")
           crop_render("pages/06-emaar-villa/page-001.png", (340, 555, 1015, 955), "06-cover-2.jpg")
           crop_render("pages/07-dubai-south/page-001.png", (55, 75, 1015, 815), "07-cover.jpg")
-          crop_render("pages/08-valley-emaar/page-001.png", (115, 340, 520, 490), "08-cover.jpg")
-          crop_render("pages/08-valley-emaar/page-001.png", (560, 340, 1005, 490), "08-cover-2.jpg")
+          crop_render("assets/08-cover.jpg", (115, 340, 520, 490), "08-cover.jpg")
+          crop_render("assets/08-cover.jpg", (560, 340, 1005, 490), "08-cover-2.jpg")
           crop_render("pages/09-residential-g4/page-001.png", (45, 35, 1410, 620), "09-cover.jpg")
           PY
           for cover in 01-cover.jpg 02-cover.jpg 03-cover.jpg 04-cover.jpg 05-cover.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 08-cover.jpg 08-cover-2.jpg 09-cover.jpg 01-admin-render.jpg 01-guard-render.jpg; do
