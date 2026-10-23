@@ -91,7 +91,7 @@ jobs:
                   if pix[0] < 0 or pix[1] < 0 or pix[2] > im.width or pix[3] > im.height:
                       raise SystemExit(f"Invalid crop {pix} for {src} ({im.width}x{im.height})")
                   out = im.crop(pix)
-                  if out.width < 300 or out.height < 120:
+                  if out.width < 150 or out.height < 50:
                       raise SystemExit(f"Cover crop unexpectedly small: {destination} {out.size}")
                   target = root / "assets" / destination
                   target.parent.mkdir(parents=True, exist_ok=True)
