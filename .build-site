@@ -1,1 +1,1 @@
-Build the cover-review preview from the original render assets, not drawing-sheet covers. Keep deployment disabled.
+Rebuild portfolio: render-only cover images, full descriptions, and viewer controls. Do not publish.
