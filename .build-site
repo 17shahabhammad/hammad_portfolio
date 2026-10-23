@@ -1,1 +1,1 @@
-Review build: create easy-to-open preview package. Do not publish the site.
+Build the cover-review preview from the original render assets, not drawing-sheet covers. Keep deployment disabled.
