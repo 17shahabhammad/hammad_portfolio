@@ -1,1 +1,1 @@
-Rebuild cover review using clean render crops from actual supplied cover assets. No deployment.
+Rebuild render-only covers and regenerate review HTML. Keep public deployment off.
