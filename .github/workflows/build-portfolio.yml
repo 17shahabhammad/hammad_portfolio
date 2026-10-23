@@ -62,8 +62,8 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t packages < <(find /tmp/had-packages -type f -name '*.zip' | sort)
-          if [[ "${#packages[@]}" -ne 14 ]]; then
-            echo "Expected 14 image-only ZIP packages; found ${#packages[@]}." >&2
+          if [[ "${#packages[@]}" -ne 15 ]]; then
+            echo "Expected 15 image-only ZIP packages (including clean-render overlay); found ${#packages[@]}." >&2
             exit 1
           fi
           for package in "${packages[@]}"; do
@@ -121,8 +121,8 @@ jobs:
           (root / "assets/.08-cover-source.jpg").unlink(missing_ok=True)
           crop_render("pages/09-residential-g4/page-001.png", (45, 35, 1410, 620), "09-cover.jpg")
           PY
-          for cover in 01-cover.jpg 02-cover.jpg 03-cover.jpg 04-cover.jpg 05-cover.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 08-cover.jpg 08-cover-2.jpg 09-cover.jpg 01-admin-render.jpg 01-guard-render.jpg; do
-            if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean cover render: assets/$cover" >&2; exit 1; fi
+          for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
+            if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
           done
           [[ -f _site/assets/had-logo.jpg ]]
           [[ -f _site/assets/04-cover.jpg ]]
