@@ -116,8 +116,8 @@ jobs:
           crop_render("pages/07-dubai-south/page-001.png", (55, 75, 1015, 815), "07-cover.jpg")
           # Keep a copy of the original masterplan sheet for two render-only townhouse crops.
           shutil.copyfile(root / "assets/08-cover.jpg", root / "assets/.08-cover-source.jpg")
-          crop_render("assets/.08-cover-source.jpg", (60, 145, 265, 225), "08-cover.jpg")
-          crop_render("assets/.08-cover-source.jpg", (280, 145, 500, 225), "08-cover-2.jpg")
+          crop_render("assets/.08-cover-source.jpg", (60, 675, 265, 795), "08-cover.jpg")
+          crop_render("assets/.08-cover-source.jpg", (280, 675, 500, 795), "08-cover-2.jpg")
           (root / "assets/.08-cover-source.jpg").unlink(missing_ok=True)
           crop_render("pages/09-residential-g4/page-001.png", (45, 35, 1410, 620), "09-cover.jpg")
           PY
