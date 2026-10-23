@@ -70,6 +70,14 @@ jobs:
             unzip -oq "$package" -d _site
           done
           cp index.html _site/index.html
+          # Prefer the dedicated SEDRA render asset from the earlier cover design; fall back only if absent.
+          if [[ ! -f _site/assets/01-cover.jpg ]]; then
+            echo "Dedicated assets/01-cover.jpg not present; using SEDRA Gate A render asset."
+            sed -i 's#assets/01-cover.jpg#assets/01-sedra-gate.jpg#g' _site/index.html
+          fi
+          for cover in 01-cover.jpg 02-cover.jpg 03-cover.jpg 04-cover.jpg 05-cover.jpg 06-cover.jpg 07-cover.jpg 08-cover.jpg 09-cover.jpg; do
+            if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing project cover: assets/$cover" >&2; exit 1; fi
+          done
           [[ -f _site/assets/had-logo.jpg ]]
           [[ -f _site/assets/04-cover.jpg ]]
           [[ -f _site/pages/01-sedra-gate/page-028.png ]]
@@ -88,6 +96,96 @@ jobs:
             echo "Site exceeds the 1 GB GitHub Pages limit." >&2
             exit 1
           fi
+
+      - name: Create standalone cover-review HTML using actual cover assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _review
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, mimetypes, re
+
+          root = Path("_site")
+          html = (root / "index.html").read_text(encoding="utf-8")
+
+          # Inline actual project-cover images and the logo from the site asset package.
+          refs = sorted(set(re.findall(r"assets/[A-Za-z0-9_.-]+\\.(?:jpg|jpeg|png|svg)", html)), key=len, reverse=True)
+          missing = []
+          for ref in refs:
+              file = root / ref
+              if not file.is_file():
+                  missing.append(ref)
+                  continue
+              mime = mimetypes.guess_type(file.name)[0] or "image/jpeg"
+              data_uri = f"data:{mime};base64," + base64.b64encode(file.read_bytes()).decode("ascii")
+              html = html.replace(ref, data_uri)
+          if missing:
+              raise SystemExit("Missing assets needed in preview: " + ", ".join(missing))
+
+          # In the local review file each drawing set shows its first sheet only.
+          # The full web build is left untouched and still holds all 541 sheets.
+          def inline_page(folder):
+              f = root / folder / "page-001.png"
+              if not f.is_file():
+                  raise SystemExit(f"Missing representative sheet image: {f}")
+              return "data:image/png;base64," + base64.b64encode(f.read_bytes()).decode("ascii")
+
+          marker = "const grid=document.getElementById('projectGrid')"
+          if marker not in html:
+              raise SystemExit("Could not locate projects array insertion point")
+          # Inject per-project representative sheet images by using the source's existing project data.
+          code = []
+          code.append("projects.forEach(p=>{if(p.parts){p.parts.forEach(part=>{part.previewSrc=")
+          code.append("'';part.pages=1;});}else{p.previewSrc='';p.pages=1;}});")
+          code = "".join(code)
+          # Build an object literal of inlined sheet samples keyed by the project's folder.
+          # This keeps the preview file self-contained and never bundles the original PDFs.
+          previews = {}
+          for project_folder in [
+              "pages/01-sedra-admin","pages/01-sedra-gate","pages/01-sedra-guard-house",
+              "pages/02-marriott","pages/03-nad-al-hamar","pages/04-expo-valley",
+              "pages/05-park-land","pages/06-emaar-villa","pages/07-dubai-south",
+              "pages/08-valley-emaar","pages/09-residential-g4"
+          ]:
+              previews[project_folder] = inline_page(project_folder)
+
+          # Extend sheet markup with a preview-only src and switch the page resolver to it.
+          old_markup = 'data-folder="${part.folder}" data-pages="${part.pages}"'
+          new_markup = 'data-folder="${part.folder}" data-preview-src="${part.previewSrc||\'\'}" data-pages="${part.pages}"'
+          if old_markup not in html:
+              raise SystemExit("Could not locate drawing viewer markup in source")
+          html = html.replace(old_markup, new_markup)
+          old_src = "function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.png`}"
+          new_src = "function sheetSrc(v,n){return v.dataset.previewSrc || `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.png`}"
+          if old_src not in html:
+              raise SystemExit("Could not locate drawing sheet URL resolver")
+          html = html.replace(old_src, new_src)
+
+          # The normal project-data objects are followed immediately by the grid constant.
+          inject = []
+          for folder, data_uri in previews.items():
+              inject.append(f"window.HAD_PREVIEW_PAGES=window.HAD_PREVIEW_PAGES||{{}};window.HAD_PREVIEW_PAGES[{folder!r}]={data_uri!r};")
+          inject.append("projects.forEach(p=>{if(p.parts){p.parts.forEach(part=>{part.previewSrc=window.HAD_PREVIEW_PAGES[part.folder];part.pages=1;});}else{p.previewSrc=window.HAD_PREVIEW_PAGES[p.folder];p.pages=1;}});")
+          html = html.replace(marker, "".join(inject) + marker, 1)
+          # Carry the preview sample into the fallback part used by projects with one drawing set.
+          html = html.replace("folder:p.folder,pages:p.pages,desc:", "folder:p.folder,pages:p.pages,previewSrc:p.previewSrc,desc:")
+          notice = '<div class="preview-notice">Cover review preview · actual project render covers · one representative drawing sheet per set · original PDFs are not included</div>'
+          html = html.replace('<main class="home"', notice + '\n<main class="home"', 1)
+          html = html.replace('</style>', '.preview-notice{padding:10px 20px;background:#302f2e;color:#fff;font:11px Arial,sans-serif;letter-spacing:.04em;text-align:center}\\n</style>', 1)
+          Path("_review/HAD-Architect-Cover-Review.html").write_text(html, encoding="utf-8")
+          print(f"Created review HTML: {Path('_review/HAD-Architect-Cover-Review.html').stat().st_size/1024/1024:.1f} MiB")
+          print("Cover assets embedded:", len(refs))
+          print("Representative sheet samples embedded:", len(previews))
+          PY
+
+      - name: Upload clean-cover review file
+        uses: actions/upload-artifact@v4
+        with:
+          name: had-architect-clean-covers-review
+          path: _review/HAD-Architect-Cover-Review.html
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload standalone review package
         uses: actions/upload-artifact@v4
