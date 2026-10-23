@@ -70,23 +70,58 @@ jobs:
             unzip -oq "$package" -d _site
           done
           cp index.html _site/index.html
-          # Prefer the dedicated SEDRA render asset from the earlier cover design; fall back only if absent.
-          if [[ ! -f _site/assets/01-cover.jpg ]]; then
-            echo "Dedicated assets/01-cover.jpg not present; using SEDRA Gate A render asset."
-            sed -i 's#assets/01-cover.jpg#assets/01-sedra-gate.jpg#g' _site/index.html
-          fi
-          for cover in 02-cover.jpg 03-cover.jpg 04-cover.jpg 05-cover.jpg 06-cover.jpg 07-cover.jpg 08-cover.jpg 09-cover.jpg; do
-            if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing project cover: assets/$cover" >&2; exit 1; fi
+          # The Gate A PDF contains 25 pages; remove stale over-counted pages from the earlier render batch.
+          rm -f _site/pages/01-sedra-gate/page-026.png _site/pages/01-sedra-gate/page-027.png _site/pages/01-sedra-gate/page-028.png
+          # Crop image-only architectural renders from the first drawing sheet. These crops are used only as project covers;
+          # the original high-resolution drawing sheets remain full-page and unchanged in the viewer.
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          root = Path("_site")
+          def crop_render(source, box, destination):
+              src = root / source
+              if not src.is_file():
+                  raise SystemExit(f"Missing cover source sheet: {src}")
+              with Image.open(src) as original:
+                  im = original.convert("RGB")
+                  sx, sy = im.width / 1500.0, im.height / 1060.0
+                  x0, y0, x1, y1 = box
+                  pix = (round(x0*sx), round(y0*sy), round(x1*sx), round(y1*sy))
+                  if pix[0] < 0 or pix[1] < 0 or pix[2] > im.width or pix[3] > im.height:
+                      raise SystemExit(f"Invalid crop {pix} for {src} ({im.width}x{im.height})")
+                  out = im.crop(pix)
+                  if out.width < 300 or out.height < 120:
+                      raise SystemExit(f"Cover crop unexpectedly small: {destination} {out.size}")
+                  target = root / "assets" / destination
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  out.save(target, "JPEG", quality=93, optimize=True, progressive=True)
+                  print(f"Render cover {destination}: {out.width}x{out.height}")
+          crop_render("pages/01-sedra-gate/page-001.png", (120, 90, 1400, 730), "01-cover.jpg")
+          crop_render("pages/01-sedra-admin/page-001.png", (245, 105, 1280, 725), "01-admin-render.jpg")
+          crop_render("pages/01-sedra-guard-house/page-001.png", (245, 105, 1280, 725), "01-guard-render.jpg")
+          crop_render("pages/02-marriott/page-001.png", (30, 130, 590, 835), "02-cover.jpg")
+          crop_render("pages/03-nad-al-hamar/page-001.png", (35, 15, 825, 1010), "03-cover.jpg")
+          # Keep the separate, already-clean Expo Valley hero render from the supplied asset package.
+          if not (root / "assets/04-cover.jpg").is_file():
+              raise SystemExit("Missing standalone Expo Valley render asset.")
+          crop_render("pages/05-park-land/page-001.png", (305, 95, 1030, 1000), "05-cover.jpg")
+          crop_render("pages/06-emaar-villa/page-001.png", (340, 115, 1015, 475), "06-cover.jpg")
+          crop_render("pages/06-emaar-villa/page-001.png", (340, 555, 1015, 955), "06-cover-2.jpg")
+          crop_render("pages/07-dubai-south/page-001.png", (55, 75, 1015, 815), "07-cover.jpg")
+          crop_render("pages/08-valley-emaar/page-001.png", (115, 340, 520, 490), "08-cover.jpg")
+          crop_render("pages/08-valley-emaar/page-001.png", (560, 340, 1005, 490), "08-cover-2.jpg")
+          crop_render("pages/09-residential-g4/page-001.png", (45, 35, 1410, 620), "09-cover.jpg")
+          PY
+          for cover in 01-cover.jpg 02-cover.jpg 03-cover.jpg 04-cover.jpg 05-cover.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 08-cover.jpg 08-cover-2.jpg 09-cover.jpg 01-admin-render.jpg 01-guard-render.jpg; do
+            if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean cover render: assets/$cover" >&2; exit 1; fi
           done
-          if [[ ! -f _site/assets/01-cover.jpg && ! -f _site/assets/01-sedra-gate.jpg ]]; then
-            echo "Missing SEDRA cover render assets." >&2; exit 1
-          fi
           [[ -f _site/assets/had-logo.jpg ]]
           [[ -f _site/assets/04-cover.jpg ]]
-          [[ -f _site/pages/01-sedra-gate/page-028.png ]]
+          [[ -f _site/pages/01-sedra-gate/page-025.png ]]
           count="$(find _site/pages -type f -name 'page-*.png' | wc -l | tr -d ' ')"
-          if [[ "$count" != "541" ]]; then
-            echo "Expected 541 full-page sheet images; found $count." >&2
+          if [[ "$count" != "538" ]]; then
+            echo "Expected 538 original drawing sheets; found $count." >&2
             exit 1
           fi
           if find _site -type f -iname '*.pdf' | grep -q .; then
@@ -127,7 +162,7 @@ jobs:
               raise SystemExit("Missing assets needed in preview: " + ", ".join(missing))
 
           # In the local review file each drawing set shows its first sheet only.
-          # The full web build is left untouched and still holds all 541 sheets.
+          # The full web build contains all 538 original sheets.
           def inline_page(folder):
               f = root / folder / "page-001.png"
               if not f.is_file():
