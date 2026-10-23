@@ -105,15 +105,19 @@ jobs:
           # Keep the separate, already-clean Expo Valley hero render from the supplied asset package.
           if not (root / "assets/04-cover.jpg").is_file():
               raise SystemExit("Missing standalone Expo Valley render asset.")
-          crop_render("pages/05-park-land/page-001.png", (305, 95, 1030, 1000), "05-cover.jpg")
-          crop_render("pages/06-emaar-villa/page-001.png", (340, 115, 1015, 475), "06-cover.jpg")
-          crop_render("pages/06-emaar-villa/page-001.png", (340, 555, 1015, 955), "06-cover-2.jpg")
-          crop_render("pages/07-dubai-south/page-001.png", (55, 75, 1015, 815), "07-cover.jpg")
-          # Keep a copy of the original masterplan sheet so the second crop doesn't read the first cropped file.
           import shutil
+          shutil.copyfile(root / "assets/05-cover.jpg", root / "assets/.05-cover-source.jpg")
+          crop_render("assets/.05-cover-source.jpg", (305, 95, 1030, 1000), "05-cover.jpg")
+          (root / "assets/.05-cover-source.jpg").unlink(missing_ok=True)
+          shutil.copyfile(root / "assets/06-cover.jpg", root / "assets/.06-cover-source.jpg")
+          crop_render("assets/.06-cover-source.jpg", (340, 115, 1015, 475), "06-cover.jpg")
+          crop_render("assets/.06-cover-source.jpg", (340, 555, 1015, 955), "06-cover-2.jpg")
+          (root / "assets/.06-cover-source.jpg").unlink(missing_ok=True)
+          crop_render("pages/07-dubai-south/page-001.png", (55, 75, 1015, 815), "07-cover.jpg")
+          # Keep a copy of the original masterplan sheet for two render-only townhouse crops.
           shutil.copyfile(root / "assets/08-cover.jpg", root / "assets/.08-cover-source.jpg")
-          crop_render("assets/.08-cover-source.jpg", (115, 340, 520, 490), "08-cover.jpg")
-          crop_render("assets/.08-cover-source.jpg", (560, 340, 1005, 490), "08-cover-2.jpg")
+          crop_render("assets/.08-cover-source.jpg", (60, 145, 265, 225), "08-cover.jpg")
+          crop_render("assets/.08-cover-source.jpg", (280, 145, 500, 225), "08-cover-2.jpg")
           (root / "assets/.08-cover-source.jpg").unlink(missing_ok=True)
           crop_render("pages/09-residential-g4/page-001.png", (45, 35, 1410, 620), "09-cover.jpg")
           PY
