@@ -106,9 +106,8 @@ jobs:
           PY
           # Gate A has 25 pages in the supplied original PDF; remove stale over-counts from earlier render batches.
           rm -f _site/pages/01-sedra-gate/page-026.png _site/pages/01-sedra-gate/page-027.png _site/pages/01-sedra-gate/page-028.png
-          # Audit every image's page proportions before packaging. Full A-series pages are
-          # normally landscape (~1.414) or portrait (~0.707); extreme ratios often indicate a crop.
-          # Apply a restrained contrast/sharpness pass to the full-page raster only, without cropping.
+          # Validate every full-page sheet, but avoid recompressing hundreds of large images.
+          # All sheets retain their original pixel dimensions. Enhance only the two confirmed faint Expo Valley pages.
           python3 -m pip install --quiet pillow
           python3 - <<'PY'
           from pathlib import Path
@@ -117,44 +116,39 @@ jobs:
           files = sorted(root.rglob("page-*.png"))
           if len(files) != 538:
               raise SystemExit(f"Expected 538 drawing pages before image checks; found {len(files)}")
-          extreme = []
-          dimensions = {}
-          corrupt = []
-          expo_adjusted = 0
+          extreme, corrupt, dimensions = [], [], {}
           for f in files:
               try:
-                  with Image.open(f) as src:
-                      width, height = src.size
-                      ratio = width / height
-                      dimensions[(width, height)] = dimensions.get((width, height), 0) + 1
-                      if ratio < 0.45 or ratio > 2.4:
-                          extreme.append(f"{f.as_posix()} ({width}x{height}, ratio={ratio:.3f})")
-                      img = src.convert("RGB")
+                  with Image.open(f) as img:
+                      width, height = img.size
+                      img.verify()
+                  dimensions[(width, height)] = dimensions.get((width, height), 0) + 1
+                  ratio = width / height
+                  if ratio < 0.45 or ratio > 2.4:
+                      extreme.append(f"{f.as_posix()} ({width}x{height}, ratio={ratio:.3f})")
               except Exception as exc:
                   corrupt.append(f"{f.as_posix()}: {type(exc).__name__}: {exc}")
-                  continue
-              # Improve fine linework at the same pixel dimensions; no crop or resize.
-              img = ImageEnhance.Contrast(img).enhance(1.10)
-              img = ImageEnhance.Sharpness(img).enhance(1.12)
-              if f.parent.name == "04-expo-valley" and f.name in {"page-007.png","page-008.png"}:
-                  img = ImageOps.autocontrast(img, cutoff=0.2)
-                  img = ImageEnhance.Contrast(img).enhance(1.22)
-                  img = ImageEnhance.Sharpness(img).enhance(1.40)
-                  expo_adjusted += 1
-              img.save(f, format="PNG", compress_level=3)
-          print(f"Sheet quality pass completed for {len(files)-len(corrupt)} readable full-page images; dimensions unchanged.")
-          print(f"Expo Valley pages 7-8 enhanced: {expo_adjusted}.")
           if corrupt:
               print("CORRUPT OR TRUNCATED SHEET IMAGES:")
               for item in corrupt:
                   print("  " + item)
-              raise SystemExit(f"{len(corrupt)} sheet images are corrupt/truncated and must be regenerated from the source PDFs.")
-          print("Distinct sheet image dimensions:", sorted((w,h,n) for (w,h),n in dimensions.items())[:30])
+              raise SystemExit(f"{len(corrupt)} sheet images are corrupt/truncated and must be regenerated from source PDFs.")
           if extreme:
-              print("ASPECT RATIO OUTLIERS (inspect before release):")
-              for item in extreme[:100]:
+              print("ASPECT RATIO OUTLIERS (check for cropping):")
+              for item in extreme:
                   print("  " + item)
-              raise SystemExit(f"{len(extreme)} drawing sheet image(s) have extreme aspect ratios; refusing to package cropped pages.")
+              raise SystemExit(f"{len(extreme)} drawing sheet image(s) have extreme aspect ratios; refusing to package potentially cropped pages.")
+          print(f"Validated all {len(files)} drawing images. Image dimensions unchanged.")
+          print("Distinct sheet image dimensions:", sorted((w,h,n) for (w,h),n in dimensions.items()))
+          for name in ("page-007.png", "page-008.png"):
+              path = root / "04-expo-valley" / name
+              with Image.open(path) as src:
+                  img = src.convert("RGB")
+              img = ImageOps.autocontrast(img, cutoff=0.2)
+              img = ImageEnhance.Contrast(img).enhance(1.22)
+              img = ImageEnhance.Sharpness(img).enhance(1.40)
+              img.save(path, format="PNG", compress_level=3)
+              print(f"Enhanced faint Expo Valley page without crop or resize: {path} ({img.width}x{img.height})")
           PY
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
