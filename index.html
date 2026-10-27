@@ -145,7 +145,7 @@ function initSheetViewer(v){
  v.querySelector('[data-action="prev"]').addEventListener('click',()=>goPage(Number(v.dataset.page)-1));
  v.querySelector('[data-action="next"]').addEventListener('click',()=>goPage(Number(v.dataset.page)+1));
  v.querySelector('[data-action="zoom-in"]').addEventListener('click',()=>{v.dataset.zoom=String(clamp(Number(v.dataset.zoom)*1.25,1,6));renderSheetViewer(v);});
- v.querySelector('[data-action="zoom-out"]').addEventListener('click',()=>{v.dataset.zoom=String(clamp(Number(v.dataset.zoom)/1.25,1,4));renderSheetViewer(v,true);});
+ v.querySelector('[data-action="zoom-out"]').addEventListener('click',()=>{v.dataset.zoom=String(clamp(Number(v.dataset.zoom)/1.25,1,6));renderSheetViewer(v,true);});
  v.querySelector('[data-action="fit"]').addEventListener('click',()=>{v.dataset.zoom='1';renderSheetViewer(v,true);});
  v.querySelector('.sheetrange').addEventListener('input',e=>goPage(Number(e.target.value)));
  v.querySelector('.sheetpagefield input').addEventListener('change',e=>goPage(clamp(Number(e.target.value)||1,1,Number(v.dataset.pages))));
