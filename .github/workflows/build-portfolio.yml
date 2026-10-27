@@ -52,6 +52,11 @@ jobs:
                          if not item.is_dir() and item.filename.lower().endswith(".zip")]
               for item in bundles:
                   name = item.filename.replace("\\", "/").rsplit("/", 1)[-1]
+                  # Never recursively unpack the generated whole-site download that was
+                  # placed beside the source image bundles for the user's convenience.
+                  if name.lower() == "had-architect-complete-website.zip":
+                      print(f"Skipping nested full-site archive: {name}")
+                      continue
                   if name:
                       (dest / name).write_bytes(archive.read(item))
           print(f"Extracted {len(list(dest.glob('*.zip')))} inner ZIP bundles.")
@@ -101,6 +106,47 @@ jobs:
           PY
           # Gate A has 25 pages in the supplied original PDF; remove stale over-counts from earlier render batches.
           rm -f _site/pages/01-sedra-gate/page-026.png _site/pages/01-sedra-gate/page-027.png _site/pages/01-sedra-gate/page-028.png
+          # Audit every image's page proportions before packaging. Full A-series pages are
+          # normally landscape (~1.414) or portrait (~0.707); extreme ratios often indicate a crop.
+          # Apply a restrained contrast/sharpness pass to the full-page raster only, without cropping.
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageEnhance, ImageOps
+          root = Path("_site/pages")
+          files = sorted(root.rglob("page-*.png"))
+          if len(files) != 538:
+              raise SystemExit(f"Expected 538 drawing pages before image checks; found {len(files)}")
+          extreme = []
+          dimensions = {}
+          expo_adjusted = 0
+          for f in files:
+              with Image.open(f) as src:
+                  width, height = src.size
+                  ratio = width / height
+                  dims = dimensions.setdefault((width, height), 0)
+                  dimensions[(width, height)] = dims + 1
+                  if ratio < 0.45 or ratio > 2.4:
+                      extreme.append(f"{f.as_posix()} ({width}x{height}, ratio={ratio:.3f})")
+                  img = src.convert("RGB")
+              # Improve fine linework at the same pixel dimensions; no crop or resize.
+              img = ImageEnhance.Contrast(img).enhance(1.10)
+              img = ImageEnhance.Sharpness(img).enhance(1.12)
+              if f.parent.name == "04-expo-valley" and f.name in {"page-007.png","page-008.png"}:
+                  img = ImageOps.autocontrast(img, cutoff=0.2)
+                  img = ImageEnhance.Contrast(img).enhance(1.22)
+                  img = ImageEnhance.Sharpness(img).enhance(1.40)
+                  expo_adjusted += 1
+              img.save(f, format="PNG", optimize=True)
+          print(f"Sheet quality pass completed for {len(files)} full-page images; dimensions unchanged.")
+          print(f"Expo Valley pages 7-8 enhanced: {expo_adjusted}.")
+          print("Distinct sheet image dimensions:", sorted((w,h,n) for (w,h),n in dimensions.items())[:30])
+          if extreme:
+              print("ASPECT RATIO OUTLIERS (inspect before release):")
+              for item in extreme[:100]:
+                  print("  " + item)
+              raise SystemExit(f"{len(extreme)} drawing sheet image(s) have extreme aspect ratios; refusing to package cropped pages.")
+          PY
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
           done
