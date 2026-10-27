@@ -119,16 +119,20 @@ jobs:
               raise SystemExit(f"Expected 538 drawing pages before image checks; found {len(files)}")
           extreme = []
           dimensions = {}
+          corrupt = []
           expo_adjusted = 0
           for f in files:
-              with Image.open(f) as src:
-                  width, height = src.size
-                  ratio = width / height
-                  dims = dimensions.setdefault((width, height), 0)
-                  dimensions[(width, height)] = dims + 1
-                  if ratio < 0.45 or ratio > 2.4:
-                      extreme.append(f"{f.as_posix()} ({width}x{height}, ratio={ratio:.3f})")
-                  img = src.convert("RGB")
+              try:
+                  with Image.open(f) as src:
+                      width, height = src.size
+                      ratio = width / height
+                      dimensions[(width, height)] = dimensions.get((width, height), 0) + 1
+                      if ratio < 0.45 or ratio > 2.4:
+                          extreme.append(f"{f.as_posix()} ({width}x{height}, ratio={ratio:.3f})")
+                      img = src.convert("RGB")
+              except Exception as exc:
+                  corrupt.append(f"{f.as_posix()}: {type(exc).__name__}: {exc}")
+                  continue
               # Improve fine linework at the same pixel dimensions; no crop or resize.
               img = ImageEnhance.Contrast(img).enhance(1.10)
               img = ImageEnhance.Sharpness(img).enhance(1.12)
@@ -138,8 +142,13 @@ jobs:
                   img = ImageEnhance.Sharpness(img).enhance(1.40)
                   expo_adjusted += 1
               img.save(f, format="PNG", compress_level=3)
-          print(f"Sheet quality pass completed for {len(files)} full-page images; dimensions unchanged.")
+          print(f"Sheet quality pass completed for {len(files)-len(corrupt)} readable full-page images; dimensions unchanged.")
           print(f"Expo Valley pages 7-8 enhanced: {expo_adjusted}.")
+          if corrupt:
+              print("CORRUPT OR TRUNCATED SHEET IMAGES:")
+              for item in corrupt:
+                  print("  " + item)
+              raise SystemExit(f"{len(corrupt)} sheet images are corrupt/truncated and must be regenerated from the source PDFs.")
           print("Distinct sheet image dimensions:", sorted((w,h,n) for (w,h),n in dimensions.items())[:30])
           if extreme:
               print("ASPECT RATIO OUTLIERS (inspect before release):")
