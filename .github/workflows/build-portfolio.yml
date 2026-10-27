@@ -75,6 +75,30 @@ jobs:
           [[ -f "$clean_assets" ]] || { echo "Missing clean render asset bundle." >&2; exit 1; }
           unzip -oq "$clean_assets" -d _site
           cp index.html _site/index.html
+          # Reconstruct the complete Park Land tower render from perspective sheet 01.
+          # The PDF lays the tall render as two stacked image panels; cropping the render area
+          # from the page image preserves the entire building, sky, and street without title blocks.
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          root = Path("_site")
+          source = root / "pages/05-park-land/page-002.png"
+          if not source.is_file():
+              raise SystemExit("Missing Park Land perspective sheet 01: pages/05-park-land/page-002.png")
+          with Image.open(source) as im:
+              im = im.convert("RGB")
+              sx = im.width / 2384.0
+              sy = im.height / 1684.0
+              # Actual full-render rectangle on the original drawing sheet (PDF points).
+              box = (round(505.6*sx), round(161.28*sy), round(1560.64*sx), round(1567.8*sy))
+              render = im.crop(box)
+              if render.width < 2500 or render.height < 3500:
+                  raise SystemExit(f"Park Land full render crop unexpectedly small: {render.size}")
+              destination = root / "assets/05-full-render.jpg"
+              render.save(destination, "JPEG", quality=96, optimize=True, progressive=True)
+              print(f"Park Land full render: {render.width} x {render.height} px")
+          PY
           # Gate A has 25 pages in the supplied original PDF; remove stale over-counts from earlier render batches.
           rm -f _site/pages/01-sedra-gate/page-026.png _site/pages/01-sedra-gate/page-027.png _site/pages/01-sedra-gate/page-028.png
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
@@ -82,6 +106,7 @@ jobs:
           done
           [[ -f _site/assets/had-logo.jpg ]]
           [[ -f _site/assets/04-cover.jpg ]]
+          [[ -f _site/assets/05-full-render.jpg ]]
           [[ -f _site/pages/01-sedra-gate/page-025.png ]]
           count="$(find _site/pages -type f -name 'page-*.png' | wc -l | tr -d ' ')"
           if [[ "$count" != "538" ]]; then
