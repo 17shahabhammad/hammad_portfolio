@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Ar. Hammad Salman Shahab — architect based in Dubai, specialising in architectural design development, technical documentation and authority submissions.">
 <title>HAD Architect — Ar. Hammad Salman Shahab</title>
 <style>
 :root{--paper:#f5f2eb;--ink:#1e1e1b;--muted:#706e67;--line:#d9d4c9;--red:#b6242d;--panel:#ebe6dc;--serif:Georgia,'Times New Roman',serif;--sans:Arial,Helvetica,sans-serif}
@@ -95,6 +95,17 @@
 .sheetviewer .sheettoolbar,.sheetviewer .sheethint{position:relative;z-index:2}
 @media(max-width:520px){.sheetstage{height:72vh!important;min-height:360px!important}.sheetviewer .sheettoolbar{gap:5px}.sheettoolbar button{padding:8px 9px}}
 
+
+/* Final review refinements: keep the name unbroken and fit each full sheet without stretching. */
+.heroaside{min-width:0}
+.heroaside h2{white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;font-size:clamp(16px,2vw,28px)!important;letter-spacing:-.045em!important}
+@media(max-width:850px){.hero{grid-template-columns:minmax(0,1fr)!important}.heroaside h2{font-size:clamp(18px,4vw,26px)!important}}
+@media(max-width:520px){.heroaside h2{font-size:clamp(16px,4.4vw,21px)!important}}
+.sheetstage{height:clamp(420px,78vh,980px)!important;min-height:360px!important;overflow:hidden!important;background:#ebe8e0!important}
+.sheetplane{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;max-width:none!important;max-height:none!important;transform-origin:center center!important}
+.sheetplane img{position:static!important;inset:auto!important;display:block!important;width:auto!important;height:auto!important;max-width:calc(100% - 24px)!important;max-height:calc(100% - 24px)!important;object-fit:contain!important;object-position:center center!important;transform:none!important;margin:0!important;background:transparent!important;image-rendering:auto!important;flex:0 1 auto!important}
+@media(max-width:520px){.sheetstage{height:72vh!important;min-height:360px!important}}
+
 </style>
 </head>
 <body>
@@ -118,7 +129,7 @@ function documentBlock(part,idx){return `<section class="part"><div class="parth
 function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.png`}
 function clamp(n,min,max){return Math.min(max,Math.max(min,n))}
 function renderSheetViewer(v,reset=false){
- const pages=Number(v.dataset.pages),page=clamp(Number(v.dataset.page)||1,1,pages),z=clamp(Number(v.dataset.zoom)||1,1,4);
+ const pages=Number(v.dataset.pages),page=clamp(Number(v.dataset.page)||1,1,pages),z=clamp(Number(v.dataset.zoom)||1,1,6);
  if(reset){v.dataset.x='0';v.dataset.y='0';} if(z===1){v.dataset.x='0';v.dataset.y='0';}
  v.dataset.page=String(page);v.dataset.zoom=String(z);
  const img=v.querySelector('.sheet-image'),src=sheetSrc(v,page);
@@ -127,13 +138,13 @@ function renderSheetViewer(v,reset=false){
  v.querySelector('[data-action="prev"]').disabled=page<=1;v.querySelector('[data-action="next"]').disabled=page>=pages;
  v.querySelector('.sheetstatus').textContent=`Sheet ${page}`;
  v.querySelector('.sheetplane').style.transform=`translate(${Number(v.dataset.x)||0}px,${Number(v.dataset.y)||0}px) scale(${z})`;
- v.querySelector('[data-action="zoom-out"]').disabled=z<=1;v.querySelector('[data-action="zoom-in"]').disabled=z>=4;
+ v.querySelector('[data-action="zoom-out"]').disabled=z<=1;v.querySelector('[data-action="zoom-in"]').disabled=z>=6;
 }
 function initSheetViewer(v){
  const goPage=n=>{v.dataset.page=String(n);v.dataset.zoom='1';v.dataset.x='0';v.dataset.y='0';renderSheetViewer(v,true);}
  v.querySelector('[data-action="prev"]').addEventListener('click',()=>goPage(Number(v.dataset.page)-1));
  v.querySelector('[data-action="next"]').addEventListener('click',()=>goPage(Number(v.dataset.page)+1));
- v.querySelector('[data-action="zoom-in"]').addEventListener('click',()=>{v.dataset.zoom=String(clamp(Number(v.dataset.zoom)*1.25,1,4));renderSheetViewer(v);});
+ v.querySelector('[data-action="zoom-in"]').addEventListener('click',()=>{v.dataset.zoom=String(clamp(Number(v.dataset.zoom)*1.25,1,6));renderSheetViewer(v);});
  v.querySelector('[data-action="zoom-out"]').addEventListener('click',()=>{v.dataset.zoom=String(clamp(Number(v.dataset.zoom)/1.25,1,4));renderSheetViewer(v,true);});
  v.querySelector('[data-action="fit"]').addEventListener('click',()=>{v.dataset.zoom='1';renderSheetViewer(v,true);});
  v.querySelector('.sheetrange').addEventListener('input',e=>goPage(Number(e.target.value)));
@@ -142,7 +153,7 @@ function initSheetViewer(v){
  stage.addEventListener('pointerdown',e=>{if(Number(v.dataset.zoom)<=1)return;drag={x:e.clientX,y:e.clientY,px:Number(v.dataset.x)||0,py:Number(v.dataset.y)||0};stage.setPointerCapture(e.pointerId);stage.classList.add('dragging');});
  stage.addEventListener('pointermove',e=>{if(!drag)return;v.dataset.x=String(drag.px+e.clientX-drag.x);v.dataset.y=String(drag.py+e.clientY-drag.y);v.querySelector('.sheetplane').style.transform=`translate(${v.dataset.x}px,${v.dataset.y}px) scale(${v.dataset.zoom})`;});
  const end=()=>{drag=null;stage.classList.remove('dragging')};stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
- stage.addEventListener('wheel',e=>{e.preventDefault();const old=Number(v.dataset.zoom)||1;const next=clamp(old*(e.deltaY<0?1.12:1/1.12),1,4);v.dataset.zoom=String(next);if(next===1){v.dataset.x='0';v.dataset.y='0';}renderSheetViewer(v);},{passive:false});
+ stage.addEventListener('wheel',e=>{e.preventDefault();const old=Number(v.dataset.zoom)||1;const next=clamp(old*(e.deltaY<0?1.12:1/1.12),1,6);v.dataset.zoom=String(next);if(next===1){v.dataset.x='0';v.dataset.y='0';}renderSheetViewer(v);},{passive:false});
  stage.addEventListener('dblclick',e=>{e.preventDefault();const z=Number(v.dataset.zoom)||1;v.dataset.zoom=z>1?'1':'2.25';renderSheetViewer(v,z>1);});
  renderSheetViewer(v,true);
 }
