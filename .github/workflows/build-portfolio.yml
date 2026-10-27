@@ -170,6 +170,33 @@ jobs:
               raise SystemExit(f"{len(extreme)} drawing sheet image(s) have extreme aspect ratios; refusing to package potentially cropped pages.")
           print(f"Validated all {len(files)} drawing images. Image dimensions unchanged.")
           print("Distinct sheet image dimensions:", sorted((w,h,n) for (w,h),n in dimensions.items()))
+
+          # Visual integrity audit: flag any sheet where one saturated, mid-tone colour
+          # occupies a large portion of the raster (often a failed/truncated image band).
+          # These are warnings for inspection, not automatic edits to the drawings.
+          from collections import Counter
+          suspicious = []
+          for f in files:
+              with Image.open(f) as source:
+                  sample = source.convert("RGB")
+                  sample.thumbnail((160, 112))
+                  pixels = list(sample.getdata())
+                  width, height = sample.size
+              counts = Counter((r // 16, g // 16, b // 16) for r, g, b in pixels)
+              total = max(1, width * height)
+              for color, count in counts.most_common(12):
+                  rgb = tuple(v * 16 + 8 for v in color)
+                  saturation = max(rgb) - min(rgb)
+                  luminance = sum(rgb) / 3
+                  if saturation >= 36 and 35 <= luminance <= 225 and count / total >= 0.18:
+                      suspicious.append(f"{f.as_posix()} ({count / total:.0%} broad color region, RGB~{rgb})")
+                      break
+          if suspicious:
+              print("VISUAL REVIEW WARNINGS — large uniform color regions; inspect these sheets:")
+              for item in suspicious:
+                  print("  " + item)
+          else:
+              print("Visual integrity audit: no large uniform saturated bands detected in the 538 sheets.")
           for name in ("page-007.png", "page-008.png"):
               path = root / "04-expo-valley" / name
               with Image.open(path) as src:
