@@ -73,6 +73,28 @@
 .sheetplane img{width:auto!important;height:auto!important;max-width:calc(100% - 24px)!important;max-height:calc(100% - 24px)!important;object-fit:contain!important;object-position:center center!important;flex:0 1 auto!important;background:#fff;image-rendering:auto}
 .sheetstage .sheetplane{pointer-events:none}
 .sheetviewer .sheettoolbar,.sheetviewer .sheethint{position:relative;z-index:1}
+
+/* Final recruiter review: keep the name on one line and give the complete sheet the viewer's full canvas. */
+.hero{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)}
+.heroaside{min-width:0}
+.heroaside h2{display:block!important;white-space:nowrap!important;max-width:none!important;font-size:clamp(16px,2vw,28px)!important;line-height:1.1!important;letter-spacing:-.045em!important}
+@media(max-width:850px){
+  .hero{grid-template-columns:minmax(0,1fr);gap:26px;padding:56px 0 64px}
+  .heroaside{width:100%;max-width:none}
+  .heroaside h2{font-size:clamp(18px,4vw,26px)!important}
+}
+@media(max-width:520px){
+  .heroaside h2{font-size:clamp(16px,4.4vw,21px)!important;letter-spacing:-.04em!important}
+}
+.contact .person{white-space:nowrap;font-size:clamp(15px,1.9vw,24px);letter-spacing:-.02em}
+.contactlinks a{display:inline-block;line-height:1.9}
+.sheetstage{height:clamp(420px,78vh,980px)!important;min-height:420px!important;overflow:hidden!important;background:#ebe8e0!important;isolation:isolate}
+.sheetplane{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;display:block!important;max-width:none!important;max-height:none!important;transform-origin:center center!important}
+.sheetplane img{position:absolute!important;inset:0!important;display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain!important;object-position:center center!important;transform:none!important;margin:0!important;background:transparent!important;image-rendering:auto!important}
+.sheetstage .sheetplane{pointer-events:none}
+.sheetviewer .sheettoolbar,.sheetviewer .sheethint{position:relative;z-index:2}
+@media(max-width:520px){.sheetstage{height:72vh!important;min-height:360px!important}.sheetviewer .sheettoolbar{gap:5px}.sheettoolbar button{padding:8px 9px}}
+
 </style>
 </head>
 <body>
