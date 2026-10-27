@@ -26,6 +26,41 @@
 @media(max-width:520px){.wordmark{font-size:15px;letter-spacing:.09em}}
 
 .detailhero.portrait-gallery{display:flex;justify-content:center;align-items:flex-start}.detailhero.portrait-gallery .renderframe{aspect-ratio:auto;min-height:0;max-height:78vh;width:100%;display:flex;justify-content:center;align-items:flex-start;background:transparent;overflow:visible}.detailhero.portrait-gallery .renderphoto{display:block;width:auto;height:auto;max-width:100%;max-height:78vh;object-fit:contain;transform:none}
+
+/* Final no-crop overrides: intentionally placed after legacy rules so older selectors cannot reframe renders. */
+.detailhero,
+.detailhero.multi-render,
+.detailhero.portrait-gallery{
+  display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;
+  grid-template-columns:minmax(0,1fr)!important;gap:0!important;width:100%;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;
+}
+.detailhero .renderframe,
+.detailhero.multi-render .renderframe,
+.detailhero.multi-render .renderframe:first-child,
+.detailhero.multi-render .renderframe:not(:first-child),
+.detailhero.portrait-gallery .renderframe{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  aspect-ratio:auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;
+  overflow:visible!important;background:transparent!important;flex:none!important;
+}
+.detailhero .renderphoto,
+.detailhero .renderphoto.full-render,
+.detailhero.multi-render .renderphoto,
+.detailhero.portrait-gallery .renderphoto{
+  display:block!important;width:auto!important;height:auto!important;max-width:100%!important;max-height:76vh!important;
+  object-fit:contain!important;object-position:center center!important;transform:none!important;aspect-ratio:auto!important;margin:0 auto!important;
+}
+.detailhero .gallery-controls{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px;margin:10px 0 24px!important}
+.detailhero .gallery-controls button{flex:0 0 auto}
+.sheetstage{height:min(88vh,1100px)!important;min-height:520px!important;overflow:hidden!important}
+.sheetplane{width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;transform-origin:center center!important}
+.sheetplane img{display:block!important;width:auto!important;height:auto!important;max-width:100%!important;max-height:100%!important;object-fit:contain!important;object-position:center!important;transform:none!important}
+@media(max-width:850px){
+  .detailhead{grid-template-columns:minmax(0,1fr)!important;gap:28px!important}
+  .detailhero .renderphoto{max-height:70vh!important}
+  .sheetstage{height:75vh!important;min-height:360px!important}
+}
+
 </style>
 </head>
 <body>
