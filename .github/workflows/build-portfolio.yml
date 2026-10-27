@@ -106,6 +106,36 @@ jobs:
           PY
           # Gate A has 25 pages in the supplied original PDF; remove stale over-counts from earlier render batches.
           rm -f _site/pages/01-sedra-gate/page-026.png _site/pages/01-sedra-gate/page-027.png _site/pages/01-sedra-gate/page-028.png
+          # Repair four PNGs whose final IDAT checksum was truncated in the transferred bundle.
+          # Load with Pillow's truncated-stream recovery, then save a fresh PNG at the same pixel dimensions.
+          # This repairs container/checksum truncation only; no crop or resize is applied.
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageFile
+          ImageFile.LOAD_TRUNCATED_IMAGES = True
+          root = Path("_site/pages")
+          targets = [
+              root / "02-marriott/page-030.png",
+              root / "07-dubai-south/page-009.png",
+              root / "07-dubai-south/page-011.png",
+              root / "08-valley-emaar/page-001.png",
+          ]
+          for path in targets:
+              if not path.is_file():
+                  raise SystemExit(f"Missing damaged drawing page to repair: {path}")
+              with Image.open(path) as source:
+                  size = source.size
+                  recovered = source.convert("RGB")
+              if recovered.size != size:
+                  raise SystemExit(f"Repair changed sheet dimensions: {path} {size} -> {recovered.size}")
+              tmp = path.with_suffix(".repaired.png")
+              recovered.save(tmp, format="PNG", compress_level=3)
+              with Image.open(tmp) as check:
+                  check.verify()
+              tmp.replace(path)
+              print(f"Repaired PNG stream without crop/resize: {path} ({size[0]}x{size[1]})")
+          PY
+
           # Validate every full-page sheet, but avoid recompressing hundreds of large images.
           # All sheets retain their original pixel dimensions. Enhance only the two confirmed faint Expo Valley pages.
           python3 -m pip install --quiet pillow
