@@ -10,7 +10,7 @@ on:
       - 'index.html'
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   IMAGE_ASSETS_URL: 'https://www.dropbox.com/scl/fo/2rdu0h94xpwcb62lazkxd/AH2dTxjQp8UbeYQujEyMrmw?rlkey=15dummfaq9x5hnugp4qtgne79&dl=0'
@@ -136,6 +136,72 @@ jobs:
               print(f"Repaired PNG stream without crop/resize: {path} ({size[0]}x{size[1]})")
           PY
 
+          # Persisted full-resolution overrides replace previously truncated source PNGs on every build.
+          for rel in \
+            pages/02-marriott/page-030.png \
+            pages/07-dubai-south/page-009.png \
+            pages/07-dubai-south/page-011.png \
+            pages/08-valley-emaar/page-001.png; do
+            if [[ -s "site-overrides/$rel" ]]; then
+              cp "site-overrides/$rel" "_site/$rel"
+              echo "Applied persistent full-resolution override: $rel"
+            fi
+          done
+
+          # One-time source recovery: render the four known damaged sheets from the original PDFs.
+          # The signed URLs are short-lived and removed from the branch after use; only the four corrected
+          # page PNGs are kept as permanent overrides for future builds.
+          if [[ -f .source-pdf-fix ]]; then
+            if ! command -v pdftoppm >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y poppler-utils
+            fi
+            mkdir -p /tmp/had-source-fix
+            while IFS='|' read -r folder page_csv url; do
+              [[ -n "$folder" && -n "$page_csv" && -n "$url" ]] || continue
+              source_pdf="/tmp/had-source-fix/${folder}.pdf"
+              echo "Downloading original PDF for source regeneration: $folder"
+              curl --fail --location --silent --show-error --retry 1 --retry-delay 2 "$url" --output "$source_pdf"
+              for page in ${page_csv//,/ }; do
+                printf -v padded '%03d' "$page"
+                tmp_prefix="/tmp/had-source-fix/${folder}-page-${padded}"
+                pdftoppm -f "$page" -l "$page" -r 200 -png -singlefile "$source_pdf" "$tmp_prefix"
+                rendered="${tmp_prefix}.png"
+                destination="_site/pages/${folder}/page-${padded}.png"
+                [[ -s "$rendered" ]] || { echo "Source render failed: $folder page $page" >&2; exit 1; }
+                python3 - "$rendered" "$destination" <<'PY'
+          import sys
+          from pathlib import Path
+          from PIL import Image
+          source, destination = map(Path, sys.argv[1:3])
+          with Image.open(source) as img:
+              img.load()
+              if img.width < 6000 or img.height < 4200 or img.width / img.height < 1.3 or img.width / img.height > 1.5:
+                  raise SystemExit(f"Regenerated sheet has unexpected dimensions: {source} {img.size}")
+              img.verify()
+              size = img.size
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          source.replace(destination)
+          with Image.open(destination) as check:
+              check.verify()
+              if check.size != size:
+                  raise SystemExit(f"Dimensions changed after render: {destination}")
+          print(f"Regenerated full-page sheet from source PDF: {destination} ({size[0]}x{size[1]})")
+          PY
+                mkdir -p "site-overrides/pages/${folder}"
+                cp "$destination" "site-overrides/pages/${folder}/page-${padded}.png"
+              done
+            done < .source-pdf-fix
+            rm -f .source-pdf-fix
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f -A -- site-overrides/pages/02-marriott/page-030.png site-overrides/pages/07-dubai-south/page-009.png site-overrides/pages/07-dubai-south/page-011.png site-overrides/pages/08-valley-emaar/page-001.png .source-pdf-fix
+            if ! git diff --cached --quiet; then
+              git commit -m "Persist full-resolution repairs for damaged drawing sheets"
+              git push origin HEAD:main
+            fi
+          fi
+
           # Validate every full-page sheet, but avoid recompressing hundreds of large images.
           # All sheets retain their original pixel dimensions. Enhance only the two confirmed faint Expo Valley pages.
           python3 -m pip install --quiet pillow
@@ -191,8 +257,20 @@ jobs:
                   if saturation >= 36 and 35 <= luminance <= 225 and count / total >= 0.18:
                       suspicious.append(f"{f.as_posix()} ({count / total:.0%} broad color region, RGB~{rgb})")
                       break
+          known_damaged = (
+              "02-marriott/page-030.png",
+              "07-dubai-south/page-009.png",
+              "07-dubai-south/page-011.png",
+              "08-valley-emaar/page-001.png",
+          )
+          unresolved_known = [item for item in suspicious if any(p in item for p in known_damaged)]
+          if unresolved_known:
+              print("SOURCE-REPAIR FAILURE: known damaged sheets still contain large colour bands:")
+              for item in unresolved_known:
+                  print("  " + item)
+              raise SystemExit("Refusing to package sheets with unresolved visual damage.")
           if suspicious:
-              print("VISUAL REVIEW WARNINGS — large uniform color regions; inspect these sheets:")
+              print("VISUAL REVIEW WARNINGS — remaining large uniform color regions; inspect these sheets:")
               for item in suspicious:
                   print("  " + item)
           else:
