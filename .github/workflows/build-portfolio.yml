@@ -137,7 +137,7 @@ jobs:
                   img = ImageEnhance.Contrast(img).enhance(1.22)
                   img = ImageEnhance.Sharpness(img).enhance(1.40)
                   expo_adjusted += 1
-              img.save(f, format="PNG", optimize=True)
+              img.save(f, format="PNG", compress_level=3)
           print(f"Sheet quality pass completed for {len(files)} full-page images; dimensions unchanged.")
           print(f"Expo Valley pages 7-8 enhanced: {expo_adjusted}.")
           print("Distinct sheet image dimensions:", sorted((w,h,n) for (w,h),n in dimensions.items())[:30])
