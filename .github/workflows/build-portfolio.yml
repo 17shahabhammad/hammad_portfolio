@@ -161,7 +161,7 @@ jobs:
               [[ -n "$folder" && -n "$page_csv" && -n "$url" ]] || continue
               source_pdf="/tmp/had-source-fix/${folder}.pdf"
               echo "Downloading original PDF for source regeneration: $folder"
-              curl --fail --location --silent --show-error --retry 1 --retry-delay 2 "$url" --output "$source_pdf"
+              curl --fail --location --silent --show-error "$url" --output "$source_pdf"
               for page in ${page_csv//,/ }; do
                 printf -v padded '%03d' "$page"
                 tmp_prefix="/tmp/had-source-fix/${folder}-page-${padded}"
@@ -176,10 +176,11 @@ jobs:
           source, destination = map(Path, sys.argv[1:3])
           with Image.open(source) as img:
               img.load()
-              if img.width < 6000 or img.height < 4200 or img.width / img.height < 1.3 or img.width / img.height > 1.5:
-                  raise SystemExit(f"Regenerated sheet has unexpected dimensions: {source} {img.size}")
-              img.verify()
               size = img.size
+              if img.width < 6000 or img.height < 4200 or img.width / img.height < 1.3 or img.width / img.height > 1.5:
+                  raise SystemExit(f"Regenerated sheet has unexpected dimensions: {source} {size}")
+          with Image.open(source) as check:
+              check.verify()
           destination.parent.mkdir(parents=True, exist_ok=True)
           source.replace(destination)
           with Image.open(destination) as check:
