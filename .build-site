@@ -1,3 +1,4 @@
 Regenerate four damaged sheets at full A1 resolution from original PDFs; persist overrides; audit all 538 sheets, responsive one-line name, Instagram contact, full-sheet viewer. Keep unpublished pending owner review.
 Quality-only review build: enhance all 538 drawing sheets, preserve every hero render, package complete preview and project download packs. Do not publish until owner approval; .publish-site marker is intentionally absent.
 Trigger final quality-only build after correcting review packaging syntax.
+Retry contrast-enhanced 538-sheet preview using compatible PIL enhancement.
