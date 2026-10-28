@@ -286,11 +286,11 @@ jobs:
               img.save(path, format="PNG", compress_level=3)
               print(f"Enhanced faint Expo Valley page without crop or resize: {path} ({img.width}x{img.height})")
           PY
-          # Improve pale plot/linework across EVERY sheet using luminance-only contrast; preserve
-          # hue and original geometry. No resizing, cropping, rotation, or sheet rearrangement.
+          # Improve pale plot/linework on every drawing sheet without resizing or cropping.
+          # The original architectural hero assets are kept unchanged in _site/assets.
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
+          from PIL import Image, ImageEnhance, ImageFilter
           root = Path("_site/pages")
           files = sorted(root.rglob("page-*.png"))
           if len(files) != 538:
@@ -300,13 +300,10 @@ jobs:
                   src.load()
                   original = src.convert("RGB")
                   size = original.size
-              luma = ImageOps.grayscale(original)
-              # The approved sample used a stronger luminance contrast treatment.
-              adjusted = ImageEnhance.Contrast(luma).enhance(1.65)
-              adjusted = adjusted.filter(ImageFilter.UnsharpMask(radius=1.1, percent=125, threshold=2))
-              ratio = ImageChops.divide(adjusted, luma, scale=255)
-              channels = [ImageChops.multiply(channel, ratio, scale=255) for channel in original.split()]
-              enhanced = Image.merge("RGB", channels)
+              # Match the stronger contrast from the approved sample and apply restrained sharpening.
+              enhanced = ImageEnhance.Contrast(original).enhance(1.65)
+              enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=1.1, percent=125, threshold=2))
+              enhanced = ImageEnhance.Sharpness(enhanced).enhance(1.12)
               if enhanced.size != size:
                   raise SystemExit(f"Enhancement changed sheet dimensions: {path}")
               temp = path.with_suffix(".enhanced.png")
@@ -316,7 +313,7 @@ jobs:
               temp.replace(path)
               if index % 50 == 0:
                   print(f"Enhanced {index}/{len(files)} sheets")
-          print(f"Applied luminance-only contrast and restrained sharpening to all {len(files)} sheets; pixel dimensions unchanged.")
+          print(f"Applied 1.65 contrast and restrained sharpening to all {len(files)} drawing sheets; pixel dimensions unchanged.")
           PY
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
