@@ -266,7 +266,7 @@ jobs:
           # The original architectural hero assets are kept unchanged in _site/assets.
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageEnhance, ImageFilter
+          from PIL import Image, ImageEnhance
           root = Path("_site/pages")
           files = sorted(root.rglob("page-*.png"))
           if len(files) != 538:
@@ -276,20 +276,18 @@ jobs:
                   src.load()
                   original = src.convert("RGB")
                   size = original.size
-              # Match the stronger contrast from the approved sample and apply restrained sharpening.
+              # Apply the approved contrast treatment only; avoid a second blur/sharpen pass.
               enhanced = ImageEnhance.Contrast(original).enhance(1.65)
-              enhanced = enhanced.filter(ImageFilter.UnsharpMask(radius=1.1, percent=125, threshold=2))
-              enhanced = ImageEnhance.Sharpness(enhanced).enhance(1.12)
               if enhanced.size != size:
                   raise SystemExit(f"Enhancement changed sheet dimensions: {path}")
               temp = path.with_suffix(".enhanced.png")
-              enhanced.save(temp, format="PNG", compress_level=3)
+              enhanced.save(temp, format="PNG", compress_level=1)
               with Image.open(temp) as check:
                   check.verify()
               temp.replace(path)
               if index % 50 == 0:
                   print(f"Enhanced {index}/{len(files)} sheets")
-          print(f"Applied 1.65 contrast and restrained sharpening to all {len(files)} drawing sheets; pixel dimensions unchanged.")
+          print(f"Applied the approved contrast treatment to all {len(files)} drawing sheets; pixel dimensions unchanged.")
           PY
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
