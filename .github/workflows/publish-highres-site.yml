@@ -1,0 +1,84 @@
+name: Publish approved high-resolution drawing-quality update
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.publish-highres-site'
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out publication record
+        uses: actions/checkout@v4
+
+      - name: Read reviewed build run ID
+        id: review
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID="$(tr -d '[:space:]' < HIGHRES_REVIEW_RUN_ID.txt)"
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "Invalid review build run ID" >&2; exit 1; }
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download exact reviewed website artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: had-architect-preview
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.review.outputs.run_id }}
+          path: _site
+
+      - name: Verify sheet quality package and unchanged design assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test "$(find _site/pages -type f -name 'page-*.webp' | wc -l | tr -d ' ')" = "538"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root = Path('_site')
+          html = (root / 'index.html').read_text(encoding='utf-8')
+          refs = set(re.findall(r'assets/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp|svg)', html))
+          missing = sorted(ref for ref in refs if not (root / ref).is_file())
+          if missing:
+              raise SystemExit('Missing hero/cover assets: ' + ', '.join(missing))
+          if len(re.findall(r'"n":"', html)) != 9:
+              raise SystemExit('The approved nine-project structure changed')
+          if 'House 3.0' in html or 'Between Water & Light' in html:
+              raise SystemExit('Competition project unexpectedly appears in approved site')
+          if 'linkedin.com/in/ar-hammad-shahab-/' not in html:
+              raise SystemExit('Approved LinkedIn link missing')
+          if 'instagram.com/had_architect' not in html:
+              raise SystemExit('Approved Instagram link missing')
+          print(f'Validated all 538 sheet files and {len(refs)} referenced hero/cover assets; website structure and contact links unchanged.')
+          PY
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload verified site to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Publish drawing-quality-only update
+        id: deployment
+        uses: actions/deploy-pages@v4
