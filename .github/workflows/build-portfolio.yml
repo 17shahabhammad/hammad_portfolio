@@ -262,11 +262,11 @@ jobs:
               img.save(path, format="PNG", compress_level=3)
               print(f"Enhanced faint Expo Valley page without crop or resize: {path} ({img.width}x{img.height})")
           PY
-          # Improve pale plot/linework on every drawing sheet without resizing or cropping.
-          # The original architectural hero assets are kept unchanged in _site/assets.
+          # Improve pale linework on every sheet in luminance only, preserving original colors.
+          # This is the tested contrast treatment from the Marriott/Expo comparison.
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageEnhance
+          from PIL import Image, ImageEnhance, ImageFilter
           root = Path("_site/pages")
           files = sorted(root.rglob("page-*.png"))
           if len(files) != 538:
@@ -274,10 +274,12 @@ jobs:
           for index, path in enumerate(files, 1):
               with Image.open(path) as src:
                   src.load()
-                  original = src.convert("RGB")
-                  size = original.size
-              # Apply the approved contrast treatment only; avoid a second blur/sharpen pass.
-              enhanced = ImageEnhance.Contrast(original).enhance(1.65)
+                  rgb = src.convert("RGB")
+                  size = rgb.size
+              y, cb, cr = rgb.convert("YCbCr").split()
+              y = ImageEnhance.Contrast(y).enhance(1.65)
+              y = y.filter(ImageFilter.UnsharpMask(radius=1.2, percent=115, threshold=2))
+              enhanced = Image.merge("YCbCr", (y, cb, cr)).convert("RGB")
               if enhanced.size != size:
                   raise SystemExit(f"Enhancement changed sheet dimensions: {path}")
               temp = path.with_suffix(".enhanced.png")
@@ -287,7 +289,7 @@ jobs:
               temp.replace(path)
               if index % 50 == 0:
                   print(f"Enhanced {index}/{len(files)} sheets")
-          print(f"Applied the approved contrast treatment to all {len(files)} drawing sheets; pixel dimensions unchanged.")
+          print(f"Applied luminance-only contrast 1.65 and light sharpening to all {len(files)} pages; dimensions unchanged.")
           PY
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
