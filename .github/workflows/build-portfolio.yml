@@ -285,6 +285,7 @@ jobs:
               img = ImageEnhance.Sharpness(img).enhance(1.40)
               img.save(path, format="PNG", compress_level=3)
               print(f"Enhanced faint Expo Valley page without crop or resize: {path} ({img.width}x{img.height})")
+          PY
           # Improve pale plot/linework across EVERY sheet using luminance-only contrast; preserve
           # hue and original geometry. No resizing, cropping, rotation, or sheet rearrangement.
           python3 - <<'PY'
@@ -443,7 +444,7 @@ jobs:
           if old_markup not in html:
               raise SystemExit("Could not find initial sheet image path in site HTML")
           html = html.replace(old_markup, new_markup, 1)
-          refs = set(re.findall(r"assets/[A-Za-z0-9_.-]+\\.(?:jpg|jpeg|png|webp|svg)", html))
+          refs = set(re.findall(r"assets/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp|svg)", html))
           missing = sorted(ref for ref in refs if not (root / ref).is_file())
           if missing:
               raise SystemExit("Missing referenced project/hero assets: " + ", ".join(missing))
