@@ -432,7 +432,7 @@ jobs:
                   image = src.convert("RGB")
                   dimensions = image.size
               destination = path.with_suffix(".webp")
-              image.save(destination, format="WEBP", quality=98, method=6)
+              image.save(destination, format="WEBP", quality=96, method=3)
               with Image.open(destination) as check:
                   check.verify()
               with Image.open(destination) as check:
