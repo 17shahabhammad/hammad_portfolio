@@ -6,3 +6,5 @@ Rebuild drawing preview after streamlining duplicate full-page pixel scan; full 
 Final attempt with efficient 1.65 contrast-only treatment for all 538 drawing sheets.
 
 Final review artifact requested by owner: rebuild complete nine-project website with existing all-sheet 1.65 contrast treatment, quality-98 WebP, 538-sheet/hero asset integrity checks, and per-project download packs. Do not deploy; approval marker intentionally absent.
+
+Final review retry after moving the 1 GB size guard to the post-WebP stage. All 538 sheets must pass integrity and cover/hero asset checks; live publish remains gated off.
