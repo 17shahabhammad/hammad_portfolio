@@ -481,16 +481,16 @@ jobs:
           cp _site/index.html _download_parts/starter/index.html
           cp -a _site/assets/. _download_parts/starter/assets/
           cat > _download_parts/starter/README.txt <<'EOF'
-HAD Architect — High-Quality Drawing Preview
-
-1. Extract this starter package into an empty folder.
-2. Extract each of the nine drawing-project packages into that same folder.
-3. When asked to merge folders, keep the existing folders and allow the new pages files to be added.
-4. Open index.html in Edge or Chrome.
-5. Do not rename the assets or pages folders.
-
-The starter includes the complete website HTML and all project covers/hero renders. The project packages supply the 538 enhanced sheet images.
-EOF
+          HAD Architect — High-Quality Drawing Preview
+          
+          1. Extract this starter package into an empty folder.
+          2. Extract each of the nine drawing-project packages into that same folder.
+          3. When asked to merge folders, keep the existing folders and allow the new pages files to be added.
+          4. Open index.html in Edge or Chrome.
+          5. Do not rename the assets or pages folders.
+          
+          The starter includes the complete website HTML and all project covers/hero renders. The project packages supply the 538 enhanced sheet images.
+          EOF
           for folder in 01-sedra-admin 01-sedra-gate 01-sedra-guard-house; do cp -a "_site/pages/$folder" "_download_parts/sedra/pages/"; done
           for folder in 02-marriott 03-nad-al-hamar 04-expo-valley 05-park-land 06-emaar-villa 07-dubai-south 08-valley-emaar 09-residential-g4; do
             mkdir -p "_download_parts/$folder/pages"
