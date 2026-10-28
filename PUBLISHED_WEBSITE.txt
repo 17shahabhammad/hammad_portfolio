@@ -1,0 +1,13 @@
+HAD ARCHITECT — PUBLISHED WEBSITE RECORD
+
+Live website: https://17shahabhammad.github.io/hammad_portfolio/
+Source repository: https://github.com/17shahabhammad/hammad_portfolio
+Successful GitHub Pages deployment run: https://github.com/17shahabhammad/hammad_portfolio/actions/runs/40648756441
+Published on: 2026-10-28
+
+Approved site details:
+- Nine projects; competition project removed.
+- LinkedIn: https://www.linkedin.com/in/ar-hammad-shahab-/
+- Instagram: https://www.instagram.com/had_architect?igsh=MWJtMjg4cWJiMHA0cQ%3D%3D&utm_source=qr
+- Final visual review archive saved in the ChatGPT Library as HAD_Architect_Final_Review_Preview_Corrected.zip.
+- This record is stored in the source repository for future reference.
