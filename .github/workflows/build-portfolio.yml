@@ -308,11 +308,8 @@ jobs:
             exit 1
           fi
           size_mb="$(du -sm _site | cut -f1)"
-          echo "Validated $count drawing images; generated site size: ${size_mb} MB."
-          if (( size_mb >= 1024 )); then
-            echo "Site exceeds the 1 GB GitHub Pages limit." >&2
-            exit 1
-          fi
+          echo "Validated $count drawing images; temporary PNG master size: ${size_mb} MB."
+          echo "Final size limit will be checked after conversion to quality-98 WebP."
 
       - name: Create standalone cover-review HTML using actual cover assets
         shell: bash
@@ -470,6 +467,11 @@ jobs:
             cp -a "_site/pages/$folder" "_download_parts/$folder/pages/"
           done
           du -sh _site _download_parts
+          final_size_mb="$(du -sm _site | cut -f1)"
+          if (( final_size_mb >= 1024 )); then
+            echo "Final WebP website exceeds the GitHub Pages 1 GB limit: ${final_size_mb} MB" >&2
+            exit 1
+          fi
           test "$(find _site/pages -type f -name 'page-*.webp' | wc -l | tr -d ' ')" = "538"
 
       - name: Upload clean-cover review file
