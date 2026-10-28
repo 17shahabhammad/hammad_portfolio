@@ -285,6 +285,37 @@ jobs:
               img = ImageEnhance.Sharpness(img).enhance(1.40)
               img.save(path, format="PNG", compress_level=3)
               print(f"Enhanced faint Expo Valley page without crop or resize: {path} ({img.width}x{img.height})")
+          # Improve pale plot/linework across EVERY sheet using luminance-only contrast; preserve
+          # hue and original geometry. No resizing, cropping, rotation, or sheet rearrangement.
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
+          root = Path("_site/pages")
+          files = sorted(root.rglob("page-*.png"))
+          if len(files) != 538:
+              raise SystemExit(f"Expected 538 sheets before enhancement; found {len(files)}")
+          for index, path in enumerate(files, 1):
+              with Image.open(path) as src:
+                  src.load()
+                  original = src.convert("RGB")
+                  size = original.size
+              luma = ImageOps.grayscale(original)
+              # The approved sample used a stronger luminance contrast treatment.
+              adjusted = ImageEnhance.Contrast(luma).enhance(1.65)
+              adjusted = adjusted.filter(ImageFilter.UnsharpMask(radius=1.1, percent=125, threshold=2))
+              ratio = ImageChops.divide(adjusted, luma, scale=255)
+              channels = [ImageChops.multiply(channel, ratio, scale=255) for channel in original.split()]
+              enhanced = Image.merge("RGB", channels)
+              if enhanced.size != size:
+                  raise SystemExit(f"Enhancement changed sheet dimensions: {path}")
+              temp = path.with_suffix(".enhanced.png")
+              enhanced.save(temp, format="PNG", compress_level=3)
+              with Image.open(temp) as check:
+                  check.verify()
+              temp.replace(path)
+              if index % 50 == 0:
+                  print(f"Enhanced {index}/{len(files)} sheets")
+          print(f"Applied luminance-only contrast and restrained sharpening to all {len(files)} sheets; pixel dimensions unchanged.")
           PY
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
@@ -391,6 +422,82 @@ jobs:
           print("Representative sheet samples embedded:", len(previews))
           PY
 
+      - name: Convert enhanced sheets to high-quality WebP and prepare complete preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import re
+          root = Path("_site")
+          html_path = root / "index.html"
+          html = html_path.read_text(encoding="utf-8")
+          old_fn = "function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.png`}"
+          new_fn = "function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.webp`}"
+          if old_fn not in html:
+              raise SystemExit("Could not find original drawing-sheet resolver in site HTML")
+          html = html.replace(old_fn, new_fn, 1)
+          old_markup = 'src="${part.folder}/page-001.png"'
+          new_markup = 'src="${part.folder}/page-001.webp"'
+          if old_markup not in html:
+              raise SystemExit("Could not find initial sheet image path in site HTML")
+          html = html.replace(old_markup, new_markup, 1)
+          refs = set(re.findall(r"assets/[A-Za-z0-9_.-]+\\.(?:jpg|jpeg|png|webp|svg)", html))
+          missing = sorted(ref for ref in refs if not (root / ref).is_file())
+          if missing:
+              raise SystemExit("Missing referenced project/hero assets: " + ", ".join(missing))
+          if len(re.findall(r"\"n\":\"", html)) != 9:
+              raise SystemExit("Expected nine portfolio projects; refusing to package a different project list")
+          if "Between Water & Light" in html or "House 3.0" in html:
+              raise SystemExit("Competition project unexpectedly present in approved portfolio HTML")
+          html_path.write_text(html, encoding="utf-8")
+          files = sorted((root / "pages").rglob("page-*.png"))
+          if len(files) != 538:
+              raise SystemExit(f"Expected 538 enhanced sheet PNGs before conversion; found {len(files)}")
+          for index, path in enumerate(files, 1):
+              with Image.open(path) as src:
+                  src.load()
+                  image = src.convert("RGB")
+                  dimensions = image.size
+              destination = path.with_suffix(".webp")
+              image.save(destination, format="WEBP", quality=98, method=6)
+              with Image.open(destination) as check:
+                  check.verify()
+              with Image.open(destination) as check:
+                  if check.size != dimensions:
+                      raise SystemExit(f"WebP dimensions differ for {path}: {dimensions} -> {check.size}")
+              path.unlink()
+              if index % 50 == 0:
+                  print(f"Converted {index}/{len(files)} sheets to quality-98 WebP")
+          pages = sorted((root / "pages").rglob("page-*.webp"))
+          if len(pages) != 538 or list((root / "pages").rglob("page-*.png")):
+              raise SystemExit(f"Final sheet count/format mismatch: {len(pages)} WebP files")
+          print(f"Verified all {len(pages)} WebP sheets; page dimensions preserved and all referenced hero assets exist ({len(refs)} asset references checked).")
+          PY
+          # Create a small starter archive folder and one sheet folder per portfolio project.
+          mkdir -p _download_parts/starter/assets _download_parts/sedra/pages
+          cp _site/index.html _download_parts/starter/index.html
+          cp -a _site/assets/. _download_parts/starter/assets/
+          cat > _download_parts/starter/README.txt <<'EOF'
+HAD Architect — High-Quality Drawing Preview
+
+1. Extract this starter package into an empty folder.
+2. Extract each of the nine drawing-project packages into that same folder.
+3. When asked to merge folders, keep the existing folders and allow the new pages files to be added.
+4. Open index.html in Edge or Chrome.
+5. Do not rename the assets or pages folders.
+
+The starter includes the complete website HTML and all project covers/hero renders. The project packages supply the 538 enhanced sheet images.
+EOF
+          for folder in 01-sedra-admin 01-sedra-gate 01-sedra-guard-house; do cp -a "_site/pages/$folder" "_download_parts/sedra/pages/"; done
+          for folder in 02-marriott 03-nad-al-hamar 04-expo-valley 05-park-land 06-emaar-villa 07-dubai-south 08-valley-emaar 09-residential-g4; do
+            mkdir -p "_download_parts/$folder/pages"
+            cp -a "_site/pages/$folder" "_download_parts/$folder/pages/"
+          done
+          du -sh _site _download_parts
+          test "$(find _site/pages -type f -name 'page-*.webp' | wc -l | tr -d ' ')" = "538"
+
       - name: Upload clean-cover review file
         uses: actions/upload-artifact@v4
         with:
@@ -406,6 +513,86 @@ jobs:
           path: _site/
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload HAD_HiRes_Starter download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Starter
+          path: _download_parts/starter/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_SEDRA download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_SEDRA
+          path: _download_parts/sedra/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Marriott download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Marriott
+          path: _download_parts/02-marriott/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Nad_Al_Hamar download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Nad_Al_Hamar
+          path: _download_parts/03-nad-al-hamar/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Expo_Valley download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Expo_Valley
+          path: _download_parts/04-expo-valley/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Park_Land download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Park_Land
+          path: _download_parts/05-park-land/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_EMAAR_Villa download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_EMAAR_Villa
+          path: _download_parts/06-emaar-villa/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Dubai_South download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Dubai_South
+          path: _download_parts/07-dubai-south/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Valley_EMAAR download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Valley_EMAAR
+          path: _download_parts/08-valley-emaar/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload HAD_HiRes_Sheets_Residential_G4 download pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_HiRes_Sheets_Residential_G4
+          path: _download_parts/09-residential-g4/**
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Prepare Pages artifact
         uses: actions/upload-pages-artifact@v3
