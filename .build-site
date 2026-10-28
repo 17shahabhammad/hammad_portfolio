@@ -3,3 +3,4 @@ Quality-only review build: enhance all 538 drawing sheets, preserve every hero r
 Trigger final quality-only build after correcting review packaging syntax.
 Retry contrast-enhanced 538-sheet preview using compatible PIL enhancement.
 Rebuild drawing preview after streamlining duplicate full-page pixel scan; full image integrity checks remain enabled.
+Final attempt with efficient 1.65 contrast-only treatment for all 538 drawing sheets.
