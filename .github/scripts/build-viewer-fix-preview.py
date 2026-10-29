@@ -43,7 +43,7 @@ html = html.replace(old_css, new_css, 1)
 
 # Change scale transforms to actual image dimensions so zoom samples the high-res source.
 old_render = (
-    "  v.querySelector('.sheetplane').style.transform=" + tick + "translate("
+    " v.querySelector('.sheetplane').style.transform=" + tick + "translate("
     + dollar_open + "Number(v.dataset.x)||0}px," + dollar_open + "Number(v.dataset.y)||0}px) scale("
     + dollar_open + "z)" + tick + ";"
 )
@@ -80,14 +80,14 @@ if html.count(old_drag) != 1:
     raise SystemExit(f"Could not find one drag transform; found {html.count(old_drag)}.")
 html = html.replace(old_drag, new_drag, 1)
 
-old_init = "function initSheetViewer(v){\n  const goPage="
-new_init = "function initSheetViewer(v){\n  const image=v.querySelector('.sheet-image');\n  image.addEventListener('load',()=>renderSheetViewer(v));\n  const goPage="
+old_init = "function initSheetViewer(v){\n const goPage="
+new_init = "function initSheetViewer(v){\n const image=v.querySelector('.sheet-image');\n image.addEventListener('load',()=>renderSheetViewer(v));\n const goPage="
 if html.count(old_init) != 1:
     raise SystemExit(f"Could not find one viewer initialization point; found {html.count(old_init)}.")
 html = html.replace(old_init, new_init, 1)
 
-old_observer = "  renderSheetViewer(v,true);\n}"
-new_observer = """  if('ResizeObserver' in window){
+old_observer = " renderSheetViewer(v,true);\n}"
+new_observer = """ if('ResizeObserver' in window){
     const resizeObserver=new ResizeObserver(()=>renderSheetViewer(v));
     resizeObserver.observe(stage);
     v._sheetResizeObserver=resizeObserver;
