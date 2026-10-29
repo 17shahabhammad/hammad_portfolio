@@ -1,0 +1,86 @@
+name: Archive approved HAD Architect final website (no deployment)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.final-site-archive.request'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out archive request
+        uses: actions/checkout@v4
+
+      - name: Download exact approved final website build
+        uses: actions/download-artifact@v4
+        with:
+          name: HAD_Architect_Original_PDF_Review_Site
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40843494662
+          path: _site
+
+      - name: Verify final website and create three complete extraction parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test -f _site/assets/had-logo.jpg
+          test "$(find _site/pages -type f -name 'page-*.webp' | wc -l | tr -d ' ')" = "538"
+          mkdir -p _parts/part1/pages _parts/part2/pages _parts/part3/pages
+          cp _site/index.html _parts/part1/index.html
+          cp -a _site/assets _parts/part1/assets
+          for folder in 01-sedra-admin 01-sedra-gate 01-sedra-guard-house 02-marriott; do
+            cp -a "_site/pages/$folder" _parts/part1/pages/
+          done
+          for folder in 03-nad-al-hamar 04-expo-valley 05-park-land 06-emaar-villa; do
+            cp -a "_site/pages/$folder" _parts/part2/pages/
+          done
+          for folder in 07-dubai-south 08-valley-emaar 09-residential-g4; do
+            cp -a "_site/pages/$folder" _parts/part3/pages/
+          done
+          for part in part1 part2 part3; do
+            count="$(find "_parts/$part/pages" -type f -name 'page-*.webp' | wc -l | tr -d ' ')"
+            test "$count" -gt 0
+            echo "$part: $count drawing sheets; $(du -sm "_parts/$part" | cut -f1) MB"
+          done
+          total="$(find _parts -type f -name 'page-*.webp' | wc -l | tr -d ' ')"
+          test "$total" = "538"
+          test -f _parts/part1/index.html
+          test -f _parts/part1/assets/had-logo.jpg
+          echo "PASS: package parts contain all 538 sheets, all site assets and the reviewed viewer-fix HTML. No deployment step is configured."
+
+      - name: Upload part 1 — site starter, assets, SEDRA and Marriott
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Architect_Final_Website_2026-10-29_Part1_Starter_SEDRA_Marriott
+          path: _parts/part1/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload part 2 — Nad Al Hamar, Expo Valley, Park Land and EMAAR Villa
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Architect_Final_Website_2026-10-29_Part2_NadAlHamar_Expo_ParkLand_EMAARVilla
+          path: _parts/part2/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload part 3 — Dubai South, Valley by EMAAR and Residential G+4
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Architect_Final_Website_2026-10-29_Part3_DubaiSouth_Valley_Residential
+          path: _parts/part3/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
