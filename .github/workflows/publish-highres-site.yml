@@ -39,7 +39,7 @@ jobs:
       - name: Download exact reviewed website artifact
         uses: actions/download-artifact@v4
         with:
-          name: had-architect-preview
+          name: HAD_Architect_Original_PDF_Review_Site
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ steps.review.outputs.run_id }}
