@@ -1,0 +1,213 @@
+name: Build untouched high-resolution sheet review packs (not published)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.quality-review-fast.request'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  IMAGE_ASSETS_URL: 'https://www.dropbox.com/scl/fo/2rdu0h94xpwcb62lazkxd/AH2dTxjQp8UbeYQujEyMrmw?rlkey=15dummfaq9x5hnugp4qtgne79&dl=0'
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out review request
+        uses: actions/checkout@v4
+
+      - name: Download original high-resolution sheet bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_url="${IMAGE_ASSETS_URL/dl=0/dl=1}"
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 2 "$download_url" --output /tmp/had-image-packages.zip
+          mkdir -p /tmp/had-packages /tmp/had-original-sheets
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          outer = Path('/tmp/had-image-packages.zip')
+          dest = Path('/tmp/had-packages')
+          with ZipFile(outer) as archive:
+              bad = archive.testzip()
+              if bad:
+                  raise SystemExit(f'Corrupt outer image archive member: {bad}')
+              bundles = [x for x in archive.infolist() if not x.is_dir() and x.filename.lower().endswith('.zip')]
+              if len(bundles) != 15:
+                  raise SystemExit(f'Expected 15 sheet/asset bundles; found {len(bundles)}')
+              for item in bundles:
+                  name = item.filename.replace('\\','/').rsplit('/',1)[-1]
+                  if name.lower() == 'had-architect-complete-website.zip':
+                      continue
+                  (dest / name).write_bytes(archive.read(item))
+          print(f'Validated outer archive and extracted {len(list(dest.glob("*.zip")))} inner bundles.')
+          PY
+          for package in /tmp/had-packages/*.zip; do
+            unzip -oq "$package" -d /tmp/had-original-sheets
+          done
+          count="$(find /tmp/had-original-sheets/pages -type f -name 'page-*.png' | wc -l | tr -d ' ')"
+          test "$count" = "538" || { echo "Expected 538 high-resolution sheets in original packages; found $count" >&2; exit 1; }
+
+      - name: Download exact previously published website baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: had-architect-preview
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40647896420
+          path: _site
+
+      - name: Replace sheet files only and preserve covers/hero renders byte-for-byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test -d _site/assets
+          (cd _site && find assets -type f -print0 | sort -z | xargs -0 sha256sum) > /tmp/had-assets.sha256
+          rm -rf _site/pages
+          cp -a /tmp/had-original-sheets/pages _site/pages
+          # Restore four pages previously repaired from the original PDFs; no visual filters are applied.
+          for rel in pages/02-marriott/page-030.png pages/07-dubai-south/page-009.png pages/07-dubai-south/page-011.png pages/08-valley-emaar/page-001.png; do
+            if [[ -s "site-overrides/$rel" ]]; then
+              cp "site-overrides/$rel" "_site/$rel"
+            fi
+          done
+          python3 -m pip install --quiet --break-system-packages pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          root = Path('_site/pages')
+          pages = sorted(root.rglob('page-*.png'))
+          if len(pages) != 538:
+              raise SystemExit(f'Expected 538 sheets; got {len(pages)}')
+          dims = {}
+          for path in pages:
+              with Image.open(path) as image:
+                  width, height = image.size
+                  image.verify()
+              if min(width, height) < 1200 or max(width, height) < 2000:
+                  raise SystemExit(f'Sheet unexpectedly small: {path} {width}x{height}')
+              dims[(width,height)] = dims.get((width,height),0)+1
+          expected = {(6623,4678): 532, (3308,2339): 6}
+          if dims != expected:
+              raise SystemExit(f'Unexpected sheet dimensions/counts: {dims}')
+          print(f'Validated all 538 original high-resolution PNG sheets; dimension counts {dims}. No contrast/sharpen/color edits were applied.')
+          PY
+          (cd _site && sha256sum -c /tmp/had-assets.sha256)
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('_site')
+          html=(root/'index.html').read_text(encoding='utf-8')
+          if len(re.findall(r'"n":"',html)) != 9: raise SystemExit('Project count changed')
+          if 'House 3.0' in html or 'Between Water & Light' in html: raise SystemExit('Competition project unexpectedly present')
+          if 'linkedin.com/in/ar-hammad-shahab-/' not in html or 'instagram.com/had_architect' not in html: raise SystemExit('Contact links changed')
+          refs=set(re.findall(r'assets/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp|svg)',html))
+          missing=[r for r in refs if not (root/r).is_file()]
+          if missing: raise SystemExit('Missing hero/cover assets: '+', '.join(sorted(missing)))
+          print(f'Website structure preserved: nine projects and {len(refs)} unchanged image asset references.')
+          PY
+
+      - name: Create starter and project-wise review packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _parts/starter/assets
+          cp _site/index.html _parts/starter/index.html
+          cp -a _site/assets/. _parts/starter/assets/
+          cat > _parts/starter/README.txt <<'EOF'
+          HAD Architect — Original High-Resolution Drawing Review
+
+          This review uses the original high-resolution sheet PNGs, with no contrast, sharpness, color, crop, or geometry changes. The website HTML and all project hero/cover images are from the exact prior published build.
+          Extract this starter package, then extract each project sheet package into the SAME folder. Open index.html in Edge or Chrome. Do not rename the assets or pages folders.
+          EOF
+          mkdir -p _parts/sedra/pages
+          for folder in 01-sedra-admin 01-sedra-gate 01-sedra-guard-house; do cp -a "_site/pages/$folder" _parts/sedra/pages/; done
+          for folder in 02-marriott 03-nad-al-hamar 04-expo-valley 05-park-land 06-emaar-villa 07-dubai-south 08-valley-emaar 09-residential-g4; do
+            mkdir -p "_parts/$folder/pages"
+            cp -a "_site/pages/$folder" "_parts/$folder/pages/"
+          done
+
+      - name: Upload starter review package
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Starter
+          path: _parts/starter/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SEDRA sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_SEDRA
+          path: _parts/sedra/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Marriott sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Marriott
+          path: _parts/02-marriott/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Nad Al Hamar sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Nad_Al_Hamar
+          path: _parts/03-nad-al-hamar/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Expo Valley sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Expo_Valley
+          path: _parts/04-expo-valley/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Park Land sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Park_Land
+          path: _parts/05-park-land/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload EMAAR Villa sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_EMAAR_Villa
+          path: _parts/06-emaar-villa/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Dubai South sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Dubai_South
+          path: _parts/07-dubai-south/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Valley EMAAR sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Valley_EMAAR
+          path: _parts/08-valley-emaar/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Residential G+4 sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_Sheets_Review_Residential_G4
+          path: _parts/09-residential-g4/
+          if-no-files-found: error
+          retention-days: 14
