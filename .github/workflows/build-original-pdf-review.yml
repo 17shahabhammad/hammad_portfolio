@@ -1,0 +1,279 @@
+name: Build original-PDF drawing clarity review (not published)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.quality-review.request'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out review request
+        uses: actions/checkout@v4
+
+      - name: Download original PDFs from one-use links
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/had-original-pdfs
+          awk -F'|' '{print $1 "|" $2}' .quality-review-sources > /tmp/had-source-page-manifest.txt
+          while IFS='|' read -r folder pages url; do
+            [[ -n "$folder" && -n "$pages" && -n "$url" ]] || continue
+            destination="/tmp/had-original-pdfs/${folder}.pdf"
+            echo "Downloading original source PDF: ${folder}"
+            curl --fail --location --silent --show-error --retry 2 --retry-delay 2 "$url" --output "$destination"
+            test -s "$destination"
+          done < .quality-review-sources
+          test "$(find /tmp/had-original-pdfs -maxdepth 1 -type f -name '*.pdf' | wc -l | tr -d ' ')" = "11"
+          # Remove short-lived download links from the live branch after successful download.
+          rm -f .quality-review-sources
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f .quality-review-sources
+          git commit -m "Remove temporary original-PDF download links"
+          git push origin HEAD:main
+
+      - name: Download exact previously published website as the visual baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: had-architect-preview
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40647896420
+          path: _site
+
+      - name: Preserve original website assets and prepare drawing-only replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test -d _site/assets
+          test -f _site/assets/had-logo.jpg
+          (cd _site && find assets -type f -print0 | sort -z | xargs -0 sha256sum) > /tmp/had-asset-sha256.txt
+          rm -rf _site/pages
+          mkdir -p _site/pages
+          echo "Using the exact previous website HTML and asset files; only drawing sheets will be replaced."
+
+      - name: Install PDF rendering tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          python3 -m pip install --quiet --break-system-packages pillow
+
+      - name: Render every drawing sheet directly from original PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS='|' read -r folder expected_pages; do
+            [[ -n "$folder" && -n "$expected_pages" ]] || continue
+            pdf="/tmp/had-original-pdfs/${folder}.pdf"
+            render_dir="/tmp/had-render-${folder}"
+            mkdir -p "$render_dir"
+            echo "Rendering original PDF at 200 DPI without contrast, sharpening, recoloring, or rescaling: ${folder}"
+            pdftoppm -r 200 -png "$pdf" "$render_dir/sheet"
+            mapfile -t pages < <(find "$render_dir" -maxdepth 1 -type f -name 'sheet-*.png' -print | sort -V)
+            if [[ "${#pages[@]}" -ne "$expected_pages" ]]; then
+              echo "Page-count mismatch for ${folder}: expected ${expected_pages}; rendered ${#pages[@]}" >&2
+              exit 1
+            fi
+            mkdir -p "_site/pages/${folder}"
+            for index in "${!pages[@]}"; do
+              printf -v padded '%03d' "$((index+1))"
+              destination="_site/pages/${folder}/page-${padded}.png"
+              mv "${pages[$index]}" "$destination"
+              python3 - "$destination" <<'PY'
+          import sys
+          from pathlib import Path
+          from PIL import Image
+          path = Path(sys.argv[1])
+          with Image.open(path) as image:
+              width, height = image.size
+              image.verify()
+          if min(width, height) < 1200 or max(width, height) < 2000:
+              raise SystemExit(f'Unexpectedly small sheet render: {path} ({width}x{height})')
+          if not 0.4 <= width / height <= 2.5:
+              raise SystemExit(f'Unexpected sheet aspect ratio: {path} ({width}x{height})')
+          print(f'Validated original-color PDF render: {path} ({width}x{height})')
+          PY
+            done
+            rm -rf "$render_dir"
+            echo "Rendered ${#pages[@]} unchanged original PDF pages for ${folder}"
+          done < /tmp/had-source-page-manifest.txt
+          count="$(find _site/pages -type f -name 'page-*.png' | wc -l | tr -d ' ')"
+          test "$count" = "538" || { echo "Expected 538 rendered sheets, found ${count}" >&2; exit 1; }
+
+      - name: Convert sheets for web delivery without image enhancement
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import re
+          root = Path('_site')
+          html_path = root / 'index.html'
+          html = html_path.read_text(encoding='utf-8')
+          old_fn = "function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.png`}"
+          new_fn = "function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.webp`}"
+          if old_fn not in html:
+              raise SystemExit('Could not find sheet resolver in the previous published HTML')
+          html = html.replace(old_fn, new_fn, 1)
+          old_markup = 'src="${part.folder}/page-001.png"'
+          new_markup = 'src="${part.folder}/page-001.webp"'
+          if old_markup not in html:
+              raise SystemExit('Could not find initial sheet image markup in the previous published HTML')
+          html = html.replace(old_markup, new_markup, 1)
+          if len(re.findall(r'"n":"', html)) != 9:
+              raise SystemExit('The nine-project website structure changed unexpectedly')
+          if 'House 3.0' in html or 'Between Water & Light' in html:
+              raise SystemExit('Competition project detected in baseline website')
+          if 'linkedin.com/in/ar-hammad-shahab-/' not in html or 'instagram.com/had_architect' not in html:
+              raise SystemExit('Approved contact link check failed')
+          html_path.write_text(html, encoding='utf-8')
+          sheets = sorted((root / 'pages').rglob('page-*.png'))
+          if len(sheets) != 538:
+              raise SystemExit(f'Expected 538 rendered source-PDF pages; found {len(sheets)}')
+          for index, path in enumerate(sheets, 1):
+              with Image.open(path) as source:
+                  source.load()
+                  dimensions = source.size
+                  image = source.convert('RGB')
+              destination = path.with_suffix('.webp')
+              # High-quality delivery encoding only: no color/contrast/sharpening edits.
+              image.save(destination, format='WEBP', quality=96, method=3)
+              with Image.open(destination) as check:
+                  check.verify()
+              with Image.open(destination) as check:
+                  if check.size != dimensions:
+                      raise SystemExit(f'WebP dimensions changed: {path} {dimensions} -> {check.size}')
+              path.unlink()
+              if index % 50 == 0:
+                  print(f'Encoded {index}/{len(sheets)} original-color sheets (no enhancement)')
+          final_pages = sorted((root / 'pages').rglob('page-*.webp'))
+          if len(final_pages) != 538 or list((root / 'pages').rglob('page-*.png')):
+              raise SystemExit(f'Final page count/format mismatch: {len(final_pages)} webp pages')
+          # Every image asset, including each project hero/cover, must remain byte-identical to the original website.
+          import subprocess
+          subprocess.run(['bash','-lc','(cd _site && sha256sum -c /tmp/had-asset-sha256.txt)'], check=True)
+          refs = set(re.findall(r'assets/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp|svg)', html))
+          missing = sorted(ref for ref in refs if not (root / ref).is_file())
+          if missing:
+              raise SystemExit('Missing hero/cover assets: ' + ', '.join(missing))
+          print(f'PASS: all {len(final_pages)} sheets rendered from originals; all {len(refs)} referenced image assets retained unchanged.')
+          PY
+
+      - name: Create starter package and project-wise sheet packs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _parts/starter/assets
+          cp _site/index.html _parts/starter/index.html
+          cp -a _site/assets/. _parts/starter/assets/
+          cat > _parts/starter/README.txt <<'EOF'
+          HAD Architect — Original-PDF Drawing Quality Review
+
+          Extract this starter package, then extract the desired project sheet packs into the same folder. Open index.html in Edge or Chrome.
+          Cover/hero images and website layout are the exact previous published files. Drawing sheets are rendered directly from the source PDFs at 200 DPI, with no contrast, color, sharpening, or geometric edits.
+          EOF
+          mkdir -p _parts/sedra/pages
+          for folder in 01-sedra-admin 01-sedra-gate 01-sedra-guard-house; do cp -a "_site/pages/$folder" _parts/sedra/pages/; done
+          for folder in 02-marriott 03-nad-al-hamar 04-expo-valley 05-park-land 06-emaar-villa 07-dubai-south 08-valley-emaar 09-residential-g4; do
+            mkdir -p "_parts/$folder/pages"
+            cp -a "_site/pages/$folder" "_parts/$folder/pages/"
+          done
+
+      - name: Upload full-site review artifact (no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Architect_Original_PDF_Review_Site
+          path: _site/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload starter package
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Starter
+          path: _parts/starter/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SEDRA sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_SEDRA
+          path: _parts/sedra/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Marriott sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Marriott
+          path: _parts/02-marriott/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Nad Al Hamar sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Nad_Al_Hamar
+          path: _parts/03-nad-al-hamar/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Expo Valley sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Expo_Valley
+          path: _parts/04-expo-valley/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Park Land sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Park_Land
+          path: _parts/05-park-land/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload EMAAR Villa sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_EMAAR_Villa
+          path: _parts/06-emaar-villa/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Dubai South sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Dubai_South
+          path: _parts/07-dubai-south/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Valley by EMAAR sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Valley_EMAAR
+          path: _parts/08-valley-emaar/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Residential G+4 sheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Original_PDF_Review_Residential_G4
+          path: _parts/09-residential-g4/
+          if-no-files-found: error
+          retention-days: 14
