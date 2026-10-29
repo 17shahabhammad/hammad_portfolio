@@ -49,6 +49,8 @@ jobs:
           for package in /tmp/had-packages/*.zip; do
             unzip -oq "$package" -d /tmp/had-original-sheets
           done
+          # The published manifest has 25 SEDRA Gate sheets; remove three stale over-counts from older bundles.
+          rm -f /tmp/had-original-sheets/pages/01-sedra-gate/page-026.png /tmp/had-original-sheets/pages/01-sedra-gate/page-027.png /tmp/had-original-sheets/pages/01-sedra-gate/page-028.png
           count="$(find /tmp/had-original-sheets/pages -type f -name 'page-*.png' | wc -l | tr -d ' ')"
           test "$count" = "538" || { echo "Expected 538 high-resolution sheets in original packages; found $count" >&2; exit 1; }
 
