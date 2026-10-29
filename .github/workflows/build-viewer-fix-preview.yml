@@ -1,0 +1,63 @@
+name: Build HAD Architect viewer rendering fix preview
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.viewer-fix-preview.request'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out preview source
+        uses: actions/checkout@v4
+
+      - name: Download the exact current high-resolution website
+        uses: actions/download-artifact@v4
+        with:
+          name: HAD_Architect_Original_PDF_Review_Site
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40818708630
+          path: _site
+
+      - name: Patch viewer behavior and verify assets
+        run: python3 .github/scripts/build-viewer-fix-preview.py
+
+      - name: Check website JavaScript syntax
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("_site/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
+          if not scripts:
+              raise SystemExit("No inline JavaScript found in the website.")
+          Path("/tmp/had-viewer-preview.js").write_text(scripts[-1], encoding="utf-8")
+          print("Extracted website JavaScript for syntax validation.")
+          PY
+          node --check /tmp/had-viewer-preview.js
+
+      - name: Upload standalone local review
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Viewer_Fix_Standalone_Preview
+          path: _review/HAD-Architect-Viewer-Fix-Review.html
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload full high-resolution website package for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Architect_Original_PDF_Review_Site
+          path: _site/
+          if-no-files-found: error
+          retention-days: 14
