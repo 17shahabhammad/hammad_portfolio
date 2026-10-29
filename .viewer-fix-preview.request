@@ -1,1 +1,1 @@
-Rebuild the unpublished viewer-rendering fix preview from the exact published artifact. Patch only index.html; verify JS syntax and byte-identical covers, hero renders, all 538 drawing sheets, and the nine-project structure. Do not deploy this change.
+Rebuild the unpublished viewer-rendering fix preview after matcher correction. Patch only index.html; verify JS syntax and byte-identical covers, hero renders, all 538 drawing sheets, and nine-project structure. Do not publish.
