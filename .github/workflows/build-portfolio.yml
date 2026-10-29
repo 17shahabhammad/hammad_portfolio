@@ -204,11 +204,11 @@ jobs:
           fi
 
           # Validate every full-page sheet, but avoid recompressing hundreds of large images.
-          # All sheets retain their original pixel dimensions. Enhance only the two confirmed faint Expo Valley pages.
+          # Validate the full drawing set. Preserve source sheet pixels; no contrast or sharpening adjustments.
           python3 -m pip install --quiet pillow
           python3 - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageEnhance, ImageOps
+          from PIL import Image
           root = Path("_site/pages")
           files = sorted(root.rglob("page-*.png"))
           if len(files) != 538:
@@ -252,45 +252,9 @@ jobs:
               with Image.open(path) as check:
                   check.verify()
               print(f"Verified repaired sheet: {path}")
-          for name in ("page-007.png", "page-008.png"):
-              path = root / "04-expo-valley" / name
-              with Image.open(path) as src:
-                  img = src.convert("RGB")
-              img = ImageOps.autocontrast(img, cutoff=0.2)
-              img = ImageEnhance.Contrast(img).enhance(1.22)
-              img = ImageEnhance.Sharpness(img).enhance(1.40)
-              img.save(path, format="PNG", compress_level=3)
-              print(f"Enhanced faint Expo Valley page without crop or resize: {path} ({img.width}x{img.height})")
           PY
-          # Improve pale linework on every sheet in luminance only, preserving original colors.
-          # This is the tested contrast treatment from the Marriott/Expo comparison.
-          python3 - <<'PY'
-          from pathlib import Path
-          from PIL import Image, ImageEnhance, ImageFilter
-          root = Path("_site/pages")
-          files = sorted(root.rglob("page-*.png"))
-          if len(files) != 538:
-              raise SystemExit(f"Expected 538 sheets before enhancement; found {len(files)}")
-          for index, path in enumerate(files, 1):
-              with Image.open(path) as src:
-                  src.load()
-                  rgb = src.convert("RGB")
-                  size = rgb.size
-              y, cb, cr = rgb.convert("YCbCr").split()
-              y = ImageEnhance.Contrast(y).enhance(1.65)
-              y = y.filter(ImageFilter.UnsharpMask(radius=1.2, percent=115, threshold=2))
-              enhanced = Image.merge("YCbCr", (y, cb, cr)).convert("RGB")
-              if enhanced.size != size:
-                  raise SystemExit(f"Enhancement changed sheet dimensions: {path}")
-              temp = path.with_suffix(".enhanced.png")
-              enhanced.save(temp, format="PNG", compress_level=1)
-              with Image.open(temp) as check:
-                  check.verify()
-              temp.replace(path)
-              if index % 50 == 0:
-                  print(f"Enhanced {index}/{len(files)} sheets")
-          print(f"Applied luminance-only contrast 1.65 and light sharpening to all {len(files)} pages; dimensions unchanged.")
-          PY
+          # Keep all drawing sheets exactly as supplied by the original high-resolution image bundle.
+          # No contrast, sharpening, color or resize operation is applied to drawing sheets.
           for cover in 01-cover.jpg 01-admin-render.jpg 01-guard-render.jpg 02-cover.jpg 02-cover-2.jpg 03-cover.jpg 03-cover-2.jpg 03-cover-3.jpg 04-cover.jpg 05-cover.jpg 05-cover-2.jpg 06-cover.jpg 06-cover-2.jpg 07-cover.jpg 07-cover-2.jpg 08-cover.jpg 08-cover-2.jpg 08-cover-3.jpg 09-cover.jpg 09-cover-2.jpg 09-cover-3.jpg; do
             if [[ ! -f "_site/assets/$cover" ]]; then echo "Missing clean architectural render: assets/$cover" >&2; exit 1; fi
           done
