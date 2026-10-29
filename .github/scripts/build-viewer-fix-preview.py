@@ -45,7 +45,7 @@ html = html.replace(old_css, new_css, 1)
 old_render = (
     " v.querySelector('.sheetplane').style.transform=" + tick + "translate("
     + dollar_open + "Number(v.dataset.x)||0}px," + dollar_open + "Number(v.dataset.y)||0}px) scale("
-    + dollar_open + "z)" + tick + ";"
+    + dollar_open + "z})" + tick + ";"
 )
 new_render = """  const plane=v.querySelector('.sheetplane'),stage=v.querySelector('.sheetstage');
   if(img.complete && img.naturalWidth>0 && img.naturalHeight>0){
@@ -73,7 +73,7 @@ html = html.replace(old_render, new_render, 1)
 old_drag = (
     "v.querySelector('.sheetplane').style.transform=" + tick + "translate("
     + dollar_open + "v.dataset.x}px," + dollar_open + "v.dataset.y}px) scale("
-    + dollar_open + "v.dataset.zoom)" + tick + ";"
+    + dollar_open + "v.dataset.zoom})" + tick + ";"
 )
 new_drag = "v.querySelector('.sheetplane').style.transform='translate('+v.dataset.x+'px,'+v.dataset.y+'px)';"
 if html.count(old_drag) != 1:
