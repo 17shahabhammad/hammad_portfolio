@@ -1,0 +1,1 @@
+Create a permanent backup of the approved live website build from 2026-10-29. Use the exact viewer-fix preview artifact (run 40843494662). Split into three extraction-compatible parts. Preserve all 538 sheets, all render assets, and the reviewed index.html. Do not deploy anything.
