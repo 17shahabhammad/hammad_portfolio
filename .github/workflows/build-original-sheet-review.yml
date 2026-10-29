@@ -37,8 +37,8 @@ jobs:
               if bad:
                   raise SystemExit(f'Corrupt outer image archive member: {bad}')
               bundles = [x for x in archive.infolist() if not x.is_dir() and x.filename.lower().endswith('.zip')]
-              if len(bundles) != 15:
-                  raise SystemExit(f'Expected 15 sheet/asset bundles; found {len(bundles)}')
+              if len(bundles) != 16:
+                  raise SystemExit(f'Expected 16 total ZIPs including one nested full-site archive; found {len(bundles)}')
               for item in bundles:
                   name = item.filename.replace('\\','/').rsplit('/',1)[-1]
                   if name.lower() == 'had-architect-complete-website.zip':
