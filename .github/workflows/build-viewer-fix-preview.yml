@@ -1,0 +1,240 @@
+name: Build HAD Architect viewer-rendering fix preview (not published)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.viewer-fix-preview.request'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out preview request
+        uses: actions/checkout@v4
+
+      - name: Download exact current high-resolution website artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HAD_Architect_Original_PDF_Review_Site
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40818708630
+          path: _site
+
+      - name: Verify the source website before the viewer-only test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test -f _site/assets/had-logo.jpg
+          test -d _site/pages
+          test "$(find _site/pages -type f -name 'page-*.webp' | wc -l | tr -d ' ')" = "538"
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root = Path("_site")
+          files = sorted(p for p in root.rglob("*") if p.is_file() and p.name != "index.html")
+          with open("/tmp/site-files.sha256", "w") as out:
+              for path in files:
+                  h = hashlib.sha256(path.read_bytes()).hexdigest()
+                  out.write(f"{h}  {path.as_posix()}\n")
+          print(f"Saved integrity baseline for {len(files)} non-HTML site files.")
+          PY
+
+      - name: Apply viewer-only rendering fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("_site/index.html")
+          html = path.read_text(encoding="utf-8")
+
+          old_css = "transform-origin:center center;user-select:none;will-change:transform}"
+          new_css = "transform-origin:center center;user-select:none}"
+          if html.count(old_css) != 1:
+              raise SystemExit(f"Expected one initial transform-layer CSS rule; found {html.count(old_css)}")
+          html = html.replace(old_css, new_css, 1)
+
+          old_render = "  v.querySelector('.sheetplane').style.transform=`translate(${Number(v.dataset.x)||0}px,${Number(v.dataset.y)||0}px) scale(${z})`;"
+          new_render = """  const plane=v.querySelector('.sheetplane'),stage=v.querySelector('.sheetstage');
+          if(img.complete && img.naturalWidth>0 && img.naturalHeight>0){
+            const fitScale=Math.min(Math.max(1,stage.clientWidth-32)/img.naturalWidth,Math.max(1,stage.clientHeight-32)/img.naturalHeight);
+            if(z>1.001){
+              img.style.setProperty('max-width','none','important');
+              img.style.setProperty('max-height','none','important');
+              img.style.setProperty('flex','0 0 auto','important');
+              img.style.setProperty('width',`${Math.round(img.naturalWidth*fitScale*z)}px`,'important');
+              img.style.setProperty('height',`${Math.round(img.naturalHeight*fitScale*z)}px`,'important');
+              plane.style.willChange='transform';
+              plane.style.transform=`translate(${Number(v.dataset.x)||0}px,${Number(v.dataset.y)||0}px)`;
+            }else{
+              img.style.removeProperty('max-width');img.style.removeProperty('max-height');img.style.removeProperty('flex');
+              img.style.removeProperty('width');img.style.removeProperty('height');
+              plane.style.transform='none';plane.style.willChange='auto';
+            }
+          }else{
+            plane.style.transform='none';plane.style.willChange='auto';
+          }"""
+          if html.count(old_render) != 1:
+              raise SystemExit(f"Could not find exactly one fitted-image transform; found {html.count(old_render)}")
+          html = html.replace(old_render, new_render, 1)
+
+          old_drag = "v.querySelector('.sheetplane').style.transform=`translate(${v.dataset.x}px,${v.dataset.y}px) scale(${v.dataset.zoom})`;"
+          new_drag = "v.querySelector('.sheetplane').style.transform=`translate(${v.dataset.x}px,${v.dataset.y}px)`;"
+          if html.count(old_drag) != 1:
+              raise SystemExit(f"Could not find exactly one drag transform; found {html.count(old_drag)}")
+          html = html.replace(old_drag, new_drag, 1)
+
+          old_init = "function initSheetViewer(v){\n  const goPage="
+          new_init = "function initSheetViewer(v){\n  const image=v.querySelector('.sheet-image');\n  image.addEventListener('load',()=>renderSheetViewer(v));\n  const goPage="
+          if html.count(old_init) != 1:
+              raise SystemExit(f"Could not find exactly one viewer initialization point; found {html.count(old_init)}")
+          html = html.replace(old_init, new_init, 1)
+
+          # Recompute the fit when the viewport changes, so a browser/window resize does not
+          # leave a zoomed sheet sized for the old viewport.
+          old_observer = "  renderSheetViewer(v,true);\n}"
+          new_observer = """  if('ResizeObserver' in window){
+            const resizeObserver=new ResizeObserver(()=>renderSheetViewer(v));
+            resizeObserver.observe(stage);
+            v._sheetResizeObserver=resizeObserver;
+          }
+          renderSheetViewer(v,true);
+}"""
+          # Only the final init function ends in this exact sequence.
+          if html.count(old_observer) != 1:
+              raise SystemExit(f"Could not find exactly one viewer end point; found {html.count(old_observer)}")
+          html = html.replace(old_observer, new_observer, 1)
+
+          if "will-change:transform}" in html:
+              raise SystemExit("Initial transform promotion is still present.")
+          if "scale(${z})" in html or "scale(${v.dataset.zoom})" in html:
+              raise SystemExit("A scale transform is still applied to the sheet plane.")
+          if html.count('"n":"') != 9:
+              raise SystemExit("The nine-project structure changed unexpectedly.")
+          path.write_text(html, encoding="utf-8")
+          print("Applied viewer-only fix: no transform at fit size; zoom changes image layout size instead of scaling a reduced-resolution layer.")
+          PY
+
+      - name: Validate JavaScript, sheets, and unchanged visual assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("_site/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S)
+          if not scripts:
+              raise SystemExit("No inline website script found")
+          Path("/tmp/had-preview-script.js").write_text(scripts[-1], encoding="utf-8")
+          if html.count('"n":"') != 9:
+              raise SystemExit("Project count is not nine")
+          pages = list(Path("_site/pages").rglob("page-*.webp"))
+          if len(pages) != 538:
+              raise SystemExit(f"Expected 538 WebP sheets; found {len(pages)}")
+          if list(Path("_site/pages").rglob("page-*.png")):
+              raise SystemExit("Unexpected PNG drawing pages; expected the current WebP deployment baseline")
+          print(f"Confirmed nine projects and all {len(pages)} existing drawing sheets.")
+          PY
+          node --check /tmp/had-preview-script.js
+          sha256sum --check /tmp/site-files.sha256
+          echo "PASS: only index.html changed; all cover/render assets and all 538 sheet files are byte-identical."
+
+      - name: Create self-contained review HTML with one representative sheet per drawing set
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _review
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, mimetypes, re
+
+          root = Path("_site")
+          html = (root / "index.html").read_text(encoding="utf-8")
+
+          refs = sorted(set(re.findall(r"assets/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|svg)", html)), key=len, reverse=True)
+          missing = []
+          for ref in refs:
+              file = root / ref
+              if not file.is_file():
+                  missing.append(ref)
+                  continue
+              mime = mimetypes.guess_type(file.name)[0] or "image/jpeg"
+              data_uri = f"data:{mime};base64," + base64.b64encode(file.read_bytes()).decode("ascii")
+              html = html.replace(ref, data_uri)
+          if missing:
+              raise SystemExit("Missing project/render assets: " + ", ".join(missing))
+
+          folders = [
+              "pages/01-sedra-admin", "pages/01-sedra-gate", "pages/01-sedra-guard-house",
+              "pages/02-marriott", "pages/03-nad-al-hamar", "pages/04-expo-valley",
+              "pages/05-park-land", "pages/06-emaar-villa", "pages/07-dubai-south",
+              "pages/08-valley-emaar", "pages/09-residential-g4"
+          ]
+          previews = {}
+          for folder in folders:
+              image_path = root / folder / "page-001.webp"
+              if not image_path.is_file():
+                  raise SystemExit(f"Missing representative drawing: {image_path}")
+              data_uri = "data:image/webp;base64," + base64.b64encode(image_path.read_bytes()).decode("ascii")
+              previews[folder] = data_uri
+
+          marker = "const grid=document.getElementById('projectGrid')"
+          if marker not in html:
+              raise SystemExit("Could not locate project-data insertion point")
+          old_markup = 'data-folder="${part.folder}" data-pages="${part.pages}"'
+          new_markup = 'data-folder="${part.folder}" data-preview-src="${part.previewSrc||\'\'}" data-pages="${part.pages}"'
+          if old_markup not in html:
+              raise SystemExit("Could not locate drawing viewer markup")
+          html = html.replace(old_markup, new_markup, 1)
+
+          old_src = "function sheetSrc(v,n){return `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.webp`}"
+          new_src = "function sheetSrc(v,n){return v.dataset.previewSrc || `${v.dataset.folder}/page-${String(n).padStart(3,'0')}.webp`}"
+          if old_src not in html:
+              raise SystemExit("Could not locate WebP drawing path resolver")
+          html = html.replace(old_src, new_src, 1)
+
+          injections = []
+          for folder, data_uri in previews.items():
+              injections.append(f"window.HAD_PREVIEW_PAGES=window.HAD_PREVIEW_PAGES||{{}};window.HAD_PREVIEW_PAGES[{folder!r}]={data_uri!r};")
+          injections.append("projects.forEach(p=>{if(p.parts){p.parts.forEach(part=>{part.previewSrc=window.HAD_PREVIEW_PAGES[part.folder];part.pages=1;});}else{p.previewSrc=window.HAD_PREVIEW_PAGES[p.folder];p.pages=1;}});")
+          html = html.replace(marker, "".join(injections) + marker, 1)
+          old_fallback = "folder:p.folder,pages:p.pages,desc:"
+          new_fallback = "folder:p.folder,pages:p.pages,previewSrc:p.previewSrc,desc:"
+          if old_fallback not in html:
+              raise SystemExit("Could not locate single-drawing-set fallback")
+          html = html.replace(old_fallback, new_fallback, 1)
+
+          notice = '<div class="preview-notice">LOCAL REVIEW ONLY · Viewer rendering fix · One representative high-resolution sheet per drawing set · Original website assets unchanged</div>'
+          html = html.replace('<main class="home"', notice + '\n<main class="home"', 1)
+          html = html.replace('</style>', '.preview-notice{padding:10px 20px;background:#302f2e;color:#fff;font:11px Arial,sans-serif;letter-spacing:.04em;text-align:center}\n</style>', 1)
+
+          output = Path("_review/HAD-Architect-Viewer-Fix-Review.html")
+          output.write_text(html, encoding="utf-8")
+          print(f"Self-contained preview: {output.stat().st_size/1024/1024:.1f} MiB; embedded {len(previews)} representative sheets and {len(refs)} referenced site assets.")
+          PY
+
+      - name: Upload viewer-fix standalone preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Viewer_Fix_Standalone_Preview
+          path: _review/HAD-Architect-Viewer-Fix-Review.html
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload full reviewed website package for local testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAD_Architect_Original_PDF_Review_Site
+          path: _site/
+          if-no-files-found: error
+          retention-days: 14
