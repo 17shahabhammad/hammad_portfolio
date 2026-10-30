@@ -13,6 +13,7 @@ header{max-width:1440px;margin:0 auto;padding:38px 34px 24px;border-bottom:1px s
 h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(30px,4vw,48px);letter-spacing:-.035em;margin:12px 0 8px}
 .subtitle{color:var(--muted);font-size:14px;line-height:1.6;max-width:760px}
 .local-note{display:inline-flex;align-items:center;gap:8px;border:1px solid #d6dfd2;background:#f2f6f0;color:#47634a;padding:7px 10px;border-radius:30px;font-size:11px;margin-top:16px}
+.engine-status{display:block;margin-top:10px;font-size:12px;color:var(--muted);min-height:18px}.engine-status.good{color:var(--green)}.engine-status.bad{color:var(--red)}
 .dot{width:7px;height:7px;border-radius:50%;background:#6c966d}
 main{max-width:1440px;margin:0 auto;padding:24px 34px 60px}
 .section-top{display:flex;justify-content:space-between;gap:20px;align-items:end;margin:8px 0 18px}
@@ -59,6 +60,7 @@ footer{max-width:1440px;margin:0 auto;padding:0 34px 36px;color:#8a867d;font-siz
   <h1>SEDRA — 3D Model Review</h1>
   <div class="subtitle">Gate A, Admin Building and Guard House. Select each IFC export to inspect the model in the browser. Orbit, zoom and pan are enabled; use Full Screen for a larger review area.</div>
   <div class="local-note"><span class="dot"></span> Local file processing · IFC models remain on your device</div>
+  <div id="engine-status" class="engine-status" role="status" aria-live="polite">Starting 3D viewer and IFC engine…</div>
 </header>
 <main>
   <div class="section-top">
@@ -111,15 +113,55 @@ footer{max-width:1440px;margin:0 auto;padding:0 34px 36px;color:#8a867d;font-siz
   </div>
 </main>
 <footer>Review preview only — not connected to the live HAD Architect portfolio. Model files are read locally by your browser; the viewer does not upload them to this GitHub repository. Requires an internet connection to load the viewer libraries and WebAssembly engine.</footer>
+<script>
+(function(){
+  function showFailure(message){
+    var note=document.getElementById("engine-status");
+    if(note){note.textContent="3D viewer startup error: "+message;note.className="engine-status bad";}
+    ["gate","admin","guard"].forEach(function(id){
+      var status=document.getElementById("status-"+id);
+      if(status && status.textContent.indexOf("Ready")!==0){
+        status.textContent="Viewer did not start. Check the startup message above.";
+        var dot=document.getElementById("dot-"+id); if(dot) dot.className="status-dot bad";
+      }
+    });
+  }
+  window.addEventListener("error",function(e){
+    if(e && (e.message || (e.target && e.target.tagName==="SCRIPT"))){
+      showFailure(e.message || "A viewer module or library failed to load.");
+    }
+  },true);
+  window.addEventListener("unhandledrejection",function(e){
+    var reason=e && e.reason; showFailure(reason && reason.message ? reason.message : String(reason || "initialization failed"));
+  });
+})();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <script type="module">
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as WEBIFC from "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/web-ifc-api.js";
 
 const wasmRoot = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/";
 const api = new WEBIFC.IfcAPI();
 api.SetWasmPath(wasmRoot, true);
-await api.Init(undefined, true);
+try {
+  await api.Init(undefined, true);
+  const note=document.getElementById("engine-status");
+  if(note){note.textContent="3D viewer ready — choose an IFC file below.";note.className="engine-status good";}
+} catch (error) {
+  const message=error && error.message ? error.message : String(error);
+  const note=document.getElementById("engine-status");
+  if(note){note.textContent="Could not start the IFC engine: "+message;note.className="engine-status bad";}
+  throw error;
+}
 
 const slots = {};
 const materialCache = new Map();
