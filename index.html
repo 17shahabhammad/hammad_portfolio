@@ -149,7 +149,45 @@
 .sheetplane img{position:static!important;display:block!important;width:auto!important;height:auto!important;max-width:calc(100% - 32px)!important;max-height:calc(100% - 32px)!important;object-fit:contain!important;object-position:center center!important;transform:none!important;background:#fff!important;flex:0 1 auto!important}
 .sheetviewer .sheettoolbar,.sheetviewer .sheethint{position:relative;z-index:2}
 
+
+/* GLB viewer preview — isolated additions; existing portfolio imagery and drawing viewers remain unchanged. */
+.model-part{padding-top:27px}
+.model-intro{display:flex;justify-content:space-between;gap:24px;align-items:end;margin-bottom:18px}
+.model-intro h2{font:30px var(--serif);font-weight:400;margin:7px 0 0}
+.model-intro p{font-size:12px;line-height:1.7;color:var(--muted);margin:0;max-width:490px}
+.model-panel{border:1px solid var(--line);background:#f8f6f0}
+.model-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.model-choices,.model-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.model-choice,.model-action,.model-file-button{font-size:10px;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);padding:10px 12px;background:#fff;color:var(--ink);cursor:pointer}
+.model-choice[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.model-action:hover,.model-file-button:hover,.model-choice:hover{border-color:var(--red);color:var(--red)}
+.model-choice[aria-pressed="true"]:hover{color:#fff}
+.model-file-button{display:inline-flex;align-items:center;gap:7px;background:#fff}
+.model-file-button input{display:none}
+.model-stage{height:min(68vh,700px);min-height:430px;position:relative;overflow:hidden;background:linear-gradient(180deg,#efede7 0%,#e6e2d9 100%);overscroll-behavior:contain}
+.model-stage model-viewer{display:block;width:100%;height:100%;background:transparent;--poster-color:transparent;touch-action:none;overscroll-behavior:contain}
+.model-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;pointer-events:none}
+.model-empty[hidden]{display:none}
+.model-empty-inner{max-width:450px}
+.model-empty h3{font:400 23px var(--serif);margin:0 0 9px}
+.model-empty p{font-size:12px;line-height:1.7;color:var(--muted);margin:0}
+.model-statusbar{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.model-status{display:flex;align-items:center;gap:8px;min-width:0}
+.model-status-dot{width:7px;height:7px;border-radius:50%;background:#b9b4a9;flex:0 0 auto}
+.model-status-dot.good{background:#53785c}.model-status-dot.bad{background:#a25b50}
+.model-progress{width:135px;height:6px;accent-color:var(--red);vertical-align:middle}
+.model-hints{display:flex;gap:16px;flex-wrap:wrap;padding:11px 14px;background:#fbfaf7;border-top:1px solid var(--line);font-size:10px;color:var(--muted)}
+.model-hints b{color:#3b3932}
+.model-file-note{font-size:10px;color:var(--muted);line-height:1.6;padding:10px 14px;border-top:1px solid var(--line)}
+.model-fbx-note{border:1px solid var(--line);background:#f8f6f0;padding:18px 20px;font-size:12px;line-height:1.7;color:var(--muted)}
+.model-fbx-note strong{color:var(--ink)}
+.model-panel:fullscreen{width:100vw;height:100vh;border:0;border-radius:0;display:flex;flex-direction:column;background:#f8f6f0}
+.model-panel:fullscreen .model-stage{height:auto;min-height:0;flex:1}
+@media(max-width:850px){.model-intro{align-items:start;flex-direction:column}.model-stage{height:60vh;min-height:360px}}
+@media(max-width:520px){.model-toolbar{align-items:flex-start}.model-actions{width:100%}.model-stage{height:58vh;min-height:330px}.model-choice,.model-action,.model-file-button{padding:9px 10px;font-size:9px}}
+
 </style>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.4.0/model-viewer.min.js"></script>
 </head>
 <body>
 <header class="wrap topbar"><a href="#home" class="wordmark" aria-label="HAD ARCHITECT"><span>HAD</span> <strong>ARCHITECT</strong></a><nav class="nav"><a href="#about" id="aboutNav">About</a><a href="#work" id="workNav">Projects</a><a href="#contact" id="contactNav">Contact</a></nav></header>
@@ -228,7 +266,124 @@ function initSheetViewer(v){
 
 function renderProjectGallery(p){const images=p.gallery&&p.gallery.length?p.gallery:[p.cover];if(images.length===1){const portrait=p.n==='05'?' portrait-gallery':'';return `<div class="detailhero${portrait}"><div class="renderframe"><img class="renderphoto" src="${images[0]}" alt="${safeText(p.title)} architectural render" loading="lazy"></div></div>`;}return `<div class="detailhero multi-render" data-gallery data-images='${safeText(JSON.stringify(images))}' data-index="0"><div class="renderframe"><img class="renderphoto" src="${images[0]}" alt="${safeText(p.title)} render 1" loading="lazy"></div><div class="gallery-controls"><button type="button" data-gallery-prev aria-label="Previous render">← Previous render</button><span class="gallery-indicator">Render 1 / ${images.length}</span><button type="button" data-gallery-next aria-label="Next render">Next render →</button></div></div>`;}
 function initProjectGallery(g){const images=JSON.parse(g.dataset.images||'[]');let i=0;const img=g.querySelector('img'),label=g.querySelector('.gallery-indicator');const update=()=>{i=(i+images.length)%images.length;img.src=images[i];img.alt=`Project render ${i+1}`;label.textContent=`Render ${i+1} / ${images.length}`;};g.querySelector('[data-gallery-prev]').addEventListener('click',()=>{i--;update()});g.querySelector('[data-gallery-next]').addEventListener('click',()=>{i++;update()});}
-function showProject(n){const p=projects.find(x=>x.n===n);if(!p)return;home.classList.add('hidden');detail.classList.add('active');const parts=p.parts||[{title:'Complete architectural drawing set',folder:p.folder,pages:p.pages,desc:'All sheets in the supplied drawing set, kept in original order.'}];content.innerHTML=`<section class="detailhead">${renderProjectGallery(p)}<div class="detailtitle"><div class="eyebrow">Project ${p.n} · Architecture</div><h1>${safeText(p.title)}</h1><div class="projectbrief">${p.briefHtml||`<p>${safeText(p.desc)}</p>`}</div><div class="detailmeta">${safeText(p.loc)}</div></div></section><section><div class="sectionhead"><div><div class="eyebrow">Project documentation</div><h2>Drawing sheets</h2></div><p>Browse the sheets in their original order. Scroll over a sheet to zoom, drag to pan, or double-click to toggle zoom.</p></div><div class="parts">${parts.map(documentBlock).join('')}</div></section>`;content.querySelectorAll('.sheetviewer').forEach(initSheetViewer);const gallery=content.querySelector('[data-gallery]');if(gallery)initProjectGallery(gallery);
+
+const projectModelData = {
+ "01":[
+  {label:"Admin Building · GA1",file:"SEDRA GA1 Admin building.glb"},
+  {label:"Gate A · GG1",file:"SEDRA GG1-Gate A.glb"},
+  {label:"Guard House · GH1",file:"SEDRA GH1-GUARD HOUSE FINAL.glb"}
+ ],
+ "02":[{label:"Marriott Hotel & Residential Apartments",file:"Marriott Hotel & Residential Apartments(1).glb",aliases:["Marriott Hotel & Residential Apartments.glb"]}],
+ "03":[{label:"Nad Al Hamar 1640",file:"Nad Al Hamar 1640.glb"}],
+ "05":[{label:"Park Land Midrise",file:"Park Land Midrise Residential Building.glb"}],
+ "06":[
+  {label:"4 Bedroom Villa",file:"EMAAR Villa Community 4BR.glb"},
+  {label:"5 Bedroom Villa",file:"EMAAR Villa Community 5BR.glb"}
+ ],
+ "09":[{label:"Residential G+4 1844",file:"Residential G+4 1844.glb"}]
+};
+const projectModelNotices = {
+ "07":"The file supplied for Dubai South is FBX, not GLB. It is intentionally not loaded into this GLB viewer."
+};
+function safeModelName(s){return String(s||"").toLowerCase().replace(/\\.[^.]+$/,"").replace(/[^a-z0-9]/g,"");}
+function renderProjectModelViewer(p){
+ const models=projectModelData[p.n]||[];
+ const notice=projectModelNotices[p.n];
+ if(!models.length){
+  return notice?'<section class="part model-part"><div class="model-intro"><div><div class="eyebrow">3D model</div><h2>Interactive 3D model</h2></div></div><div class="model-fbx-note"><strong>Format note:</strong> '+safeText(notice)+'</div></section>':"";
+ }
+ const list=safeText(JSON.stringify(models));
+ const choices=models.length>1?'<div class="model-choices">'+models.map((m,i)=>'<button class="model-choice" type="button" data-model-choice="'+i+'" aria-pressed="'+(i===0?'true':'false')+'">'+safeText(m.label)+'</button>').join("")+'</div>':'<div class="model-choices"><span class="eyebrow">'+safeText(models[0].label)+'</span></div>';
+ return '<section class="part model-part" data-project-models data-model-list="'+list+'"><div class="model-intro"><div><div class="eyebrow">Explore the project</div><h2>Interactive 3D model</h2></div><p>Inspect the architectural massing in 3D. The model viewer is placed between the project render and drawing sheets.</p></div><div class="model-panel"><div class="model-toolbar">'+choices+'<div class="model-actions"><label class="model-file-button">Choose GLB file(s)<input type="file" accept=".glb,model/gltf-binary" multiple data-glb-input></label><button class="model-action" type="button" data-model-reset>Reset view</button><button class="model-action" type="button" data-model-fullscreen>Full screen</button></div></div><div class="model-stage"><model-viewer camera-controls interaction-prompt="none" camera-orbit="35deg 68deg 100%" camera-target="auto auto auto" field-of-view="32deg" min-field-of-view="15deg" max-field-of-view="60deg" orbit-sensitivity="0.8" zoom-sensitivity="0.8" pan-sensitivity="0.9" touch-action="none" shadow-intensity="0.85" exposure="1" tone-mapping="aces" loading="eager" reveal="auto" alt="'+safeText(p.title)+' interactive 3D model"></model-viewer><div class="model-empty"><div class="model-empty-inner"><h3>Load the '+safeText(models[0].label)+' model</h3><p>Select the matching GLB file from your computer. For projects with multiple models, select all GLBs for that project together, then switch between the model tabs above.</p></div></div></div><div class="model-statusbar"><div class="model-status"><span class="model-status-dot" data-model-status-dot></span><span data-model-status>Waiting for a GLB file</span></div><div><progress class="model-progress" max="1" value="0" hidden data-model-progress></progress> <span data-model-filename>Left-drag orbit · wheel zoom · right-drag pan</span></div></div><div class="model-hints"><span><b>Orbit:</b> left mouse drag</span><span><b>Zoom:</b> mouse wheel over model</span><span><b>Pan:</b> right mouse drag or Shift/Ctrl + drag</span><span><b>Set pivot:</b> click a point on the model</span><span><b>Quick views:</b> '+["Isometric","Front","Back","Left","Right","Top","Bottom"].map((v,i)=>'<button type="button" class="model-action" data-model-view="'+["iso","front","back","left","right","top","bottom"][i]+'">'+v+'</button>').join("")+'</span></div><div class="model-file-note">Preview mode: GLBs are selected locally for this review and are not yet hosted for recruiter access. The live portfolio has not been changed.</div></div></section>';
+}
+function initProjectModelViewer(section){
+ const models=JSON.parse(section.dataset.modelList||"[]");
+ const viewer=section.querySelector("model-viewer");
+ const input=section.querySelector("[data-glb-input]");
+ const empty=section.querySelector(".model-empty");
+ const status=section.querySelector("[data-model-status]");
+ const dot=section.querySelector("[data-model-status-dot]");
+ const progress=section.querySelector("[data-model-progress]");
+ const filename=section.querySelector("[data-model-filename]");
+ const panel=section.querySelector(".model-panel");
+ const files=new Map(),urls=new Map();
+ let active=0,currentUrl=null;
+ const setStatus=(message,type="")=>{status.textContent=message;dot.className="model-status-dot"+(type?" "+type:"");};
+ const formatSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":(n/1024).toFixed(1)+" KB";
+ const frame=async()=>{
+  await viewer.updateFraming();
+  viewer.cameraTarget="auto auto auto";
+  viewer.cameraOrbit="35deg 68deg auto";
+  if(typeof viewer.jumpCameraToGoal==="function")viewer.jumpCameraToGoal();
+ };
+ const loadActive=()=>{
+  const file=files.get(active);
+  if(!file){
+   viewer.removeAttribute("src");empty.hidden=false;
+   empty.querySelector("h3").textContent="Load the "+models[active].label+" model";
+   empty.querySelector("p").textContent="Choose the matching GLB file. "+(models.length>1?"You can select all "+models.length+" project models together.":"");
+   progress.hidden=true;filename.textContent="Left-drag orbit · wheel zoom · right-drag pan";
+   setStatus("Waiting for "+models[active].label);return;
+  }
+  if(urls.has(active))URL.revokeObjectURL(urls.get(active));
+  const url=URL.createObjectURL(file);urls.set(active,url);currentUrl=url;
+  viewer.src=url;empty.hidden=false;progress.hidden=false;progress.value=0;
+  filename.textContent=file.name+" · "+formatSize(file.size);setStatus("Loading "+models[active].label+"…");
+ };
+ input.addEventListener("change",()=>{
+  let matches=0;
+  for(const file of Array.from(input.files||[])){
+   const fileName=safeModelName(file.name);
+   const index=models.findIndex(m=>[m.file,...(m.aliases||[])].some(n=>safeModelName(n)===fileName));
+   if(index>=0){files.set(index,file);matches++;}
+  }
+  if(!matches){setStatus("No matching GLB filenames found. Please select the original named files.","bad");return;}
+  setStatus(matches+" matching model file"+(matches===1?"":"s")+" loaded locally.","good");loadActive();
+ });
+ section.querySelectorAll("[data-model-choice]").forEach(button=>{
+  button.addEventListener("click",()=>{
+   active=Number(button.dataset.modelChoice);
+   section.querySelectorAll("[data-model-choice]").forEach(b=>b.setAttribute("aria-pressed",String(b===button)));
+   loadActive();
+  });
+ });
+ section.querySelectorAll("[data-model-view]").forEach(button=>{
+  button.addEventListener("click",()=>{
+   if(!viewer.src){setStatus("Load a model before choosing a view.");return;}
+   const views={iso:"35deg 68deg auto",front:"0deg 75deg auto",back:"180deg 75deg auto",left:"-90deg 75deg auto",right:"90deg 75deg auto",top:"0deg 0deg auto",bottom:"0deg 180deg auto"};
+   viewer.cameraTarget="auto auto auto";viewer.cameraOrbit=views[button.dataset.modelView]||views.iso;
+   if(typeof viewer.jumpCameraToGoal==="function")viewer.jumpCameraToGoal();
+  });
+ });
+ section.querySelector("[data-model-reset]").addEventListener("click",async()=>{
+  if(!viewer.src)return;
+  setStatus("Resetting camera…");
+  try{await frame();setStatus("Model ready · "+models[active].label,"good");}
+  catch(e){setStatus("Could not reset view: "+(e?.message||String(e)),"bad");}
+ });
+ section.querySelector("[data-model-fullscreen]").addEventListener("click",async()=>{
+  try{if(document.fullscreenElement===panel)await document.exitFullscreen();else await panel.requestFullscreen();}
+  catch(e){setStatus("Full screen unavailable: "+(e?.message||String(e)),"bad");}
+ });
+ document.addEventListener("fullscreenchange",()=>{
+  const b=section.querySelector("[data-model-fullscreen]");
+  if(b)b.textContent=document.fullscreenElement===panel?"Exit full screen":"Full screen";
+ });
+ viewer.addEventListener("progress",event=>{
+  const value=event.detail?.totalProgress??0;progress.value=value;
+  if(value<1)setStatus("Loading and decoding GLB · "+Math.round(value*100)+"%");
+ });
+ viewer.addEventListener("load",async()=>{
+  try{await frame();empty.hidden=true;progress.hidden=true;setStatus("Ready · "+models[active].label,"good");}
+  catch(e){progress.hidden=true;setStatus("Model loaded; camera framing issue: "+(e?.message||String(e)),"bad");}
+ });
+ viewer.addEventListener("error",event=>{
+  progress.hidden=true;setStatus("Could not load GLB: "+(event.detail?.type||event.detail?.message||"unknown loading error"),"bad");
+ });
+ window.addEventListener("beforeunload",()=>urls.forEach(url=>URL.revokeObjectURL(url)));
+}
+
+function showProject(n){const p=projects.find(x=>x.n===n);if(!p)return;home.classList.add('hidden');detail.classList.add('active');const parts=p.parts||[{title:'Complete architectural drawing set',folder:p.folder,pages:p.pages,desc:'All sheets in the supplied drawing set, kept in original order.'}];content.innerHTML=`<section class="detailhead">${renderProjectGallery(p)}<div class="detailtitle"><div class="eyebrow">Project ${p.n} · Architecture</div><h1>${safeText(p.title)}</h1><div class="projectbrief">${p.briefHtml||`<p>${safeText(p.desc)}</p>`}</div><div class="detailmeta">${safeText(p.loc)}</div></div></section>${renderProjectModelViewer(p)}<section><div class="sectionhead"><div><div class="eyebrow">Project documentation</div><h2>Drawing sheets</h2></div><p>Browse the sheets in their original order. Scroll over a sheet to zoom, drag to pan, or double-click to toggle zoom.</p></div><div class="parts">${parts.map(documentBlock).join('')}</div></section>`;content.querySelectorAll('.sheetviewer').forEach(initSheetViewer);const gallery=content.querySelector('[data-gallery]');if(gallery)initProjectGallery(gallery);
  const idx=projects.findIndex(x=>x.n===n);document.getElementById('prevProject').disabled=idx===0;document.getElementById('nextProject').disabled=idx===projects.length-1;document.getElementById('prevProject').onclick=()=>{if(idx>0)navigate(projects[idx-1].n)};document.getElementById('nextProject').onclick=()=>{if(idx<projects.length-1)navigate(projects[idx+1].n)};window.scrollTo({top:0,behavior:'instant'});}
 function showHome(){detail.classList.remove('active');home.classList.remove('hidden');if(location.hash==='#work'){setTimeout(()=>document.getElementById('work').scrollIntoView({behavior:'instant',block:'start'}),0)}else{window.scrollTo({top:0,behavior:'instant'})}}
 function navigate(n){if(n){location.hash=`project-${n}`}else{location.hash='work'}}
