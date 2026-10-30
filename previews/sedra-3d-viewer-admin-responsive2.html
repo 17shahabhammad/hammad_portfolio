@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HAD Architect | SEDRA 3D Model Preview</title>
+<style>
+:root{--ink:#262521;--muted:#77746d;--line:#dedbd4;--paper:#f5f3ee;--white:#fffefa;--sand:#e9e4d9;--accent:#9b8867;--green:#55765e;--red:#9b5a50}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{max-width:1440px;margin:0 auto;padding:38px 34px 24px;border-bottom:1px solid var(--line)}
+.kicker{font-size:11px;letter-spacing:.19em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(30px,4vw,48px);letter-spacing:-.035em;margin:12px 0 8px}
+.subtitle{color:var(--muted);font-size:14px;line-height:1.6;max-width:760px}
+.local-note{display:inline-flex;align-items:center;gap:8px;border:1px solid #d6dfd2;background:#f2f6f0;color:#47634a;padding:7px 10px;border-radius:30px;font-size:11px;margin-top:16px}
+.engine-status{display:block;margin-top:10px;font-size:12px;color:var(--muted);min-height:18px}.engine-status.good{color:var(--green)}.engine-status.bad{color:var(--red)}
+.dot{width:7px;height:7px;border-radius:50%;background:#6c966d}
+main{max-width:1440px;margin:0 auto;padding:24px 34px 60px}
+.section-top{display:flex;justify-content:space-between;gap:20px;align-items:end;margin:8px 0 18px}
+.section-top h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin:0}
+.section-top p{font-size:12px;color:var(--muted);margin:0}
+.model-list{display:grid;grid-template-columns:1fr;gap:22px}
+.model-card{background:var(--white);border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:0 5px 24px rgba(48,43,34,.045)}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:17px 20px;border-bottom:1px solid var(--line)}
+.card-title{display:flex;gap:14px;align-items:center;min-width:0}
+.index{font-family:Georgia,serif;font-size:22px;color:#a39883}
+.card-title h3{font-size:16px;font-weight:600;margin:0 0 4px}
+.card-title p{font-size:11px;color:var(--muted);margin:0}
+.controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+button,.file-label{border:1px solid #c9c4b9;background:#fffefa;color:#33312b;border-radius:6px;padding:9px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover,.file-label:hover{background:#f1eee7;border-color:#a9a18f}
+button.primary{background:#292822;color:#fffefa;border-color:#292822}
+button.primary:hover{background:#454239}
+button:disabled{opacity:.55;cursor:wait}
+.file-label input{display:none}
+.viewport{height:500px;position:relative;background:linear-gradient(180deg,#efede7,#e8e5dd);overflow:hidden}
+.viewport{overscroll-behavior:contain;touch-action:none}.viewport canvas{touch-action:none;user-select:none;-webkit-user-select:none}
+.nav-widget{position:absolute;right:14px;top:12px;z-index:8;width:112px;display:flex;flex-direction:column;align-items:center;pointer-events:none;filter:drop-shadow(0 3px 7px rgba(45,40,30,.12))}
+.viewcube-stage{width:108px;height:82px;perspective:240px;position:relative;pointer-events:none}
+.viewcube-3d{position:absolute;left:29px;top:13px;width:50px;height:50px;transform-style:preserve-3d;transform:rotateX(-22deg) rotateY(-36deg);pointer-events:none}
+.viewcube-3d button{position:absolute;left:0;top:0;width:50px;height:50px;padding:0;border:1px solid #898273;border-radius:3px;background:rgba(255,254,250,.97);color:#38362f;font-size:8px;font-weight:800;letter-spacing:.035em;display:grid;place-items:center;pointer-events:auto;backface-visibility:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.7)}
+.viewcube-3d button:hover{background:#e8e0d0;border-color:#9b8867}
+.viewcube-3d button[aria-pressed="true"]{background:#e4dbc8;border-color:#8e7959;box-shadow:inset 0 0 0 2px rgba(155,136,103,.24)}
+.viewcube-3d .front{transform:translateZ(25px)}
+.viewcube-3d .back{transform:rotateY(180deg) translateZ(25px)}
+.viewcube-3d .right{transform:rotateY(90deg) translateZ(25px)}
+.viewcube-3d .left{transform:rotateY(-90deg) translateZ(25px)}
+.viewcube-3d .top{transform:rotateX(90deg) translateZ(25px)}
+.viewcube-3d .bottom{transform:rotateX(-90deg) translateZ(25px)}
+.nav-ring{width:78px;height:22px;border:1px solid rgba(117,109,94,.72);border-radius:50%;transform:rotateX(62deg);margin-top:-7px;background:rgba(255,254,250,.32);pointer-events:none}
+.nav-caption{font-size:9px;letter-spacing:.1em;font-weight:700;color:#746e62;margin-top:-3px;text-transform:uppercase}
+.nav-help{position:absolute;left:12px;bottom:12px;z-index:6;max-width:calc(100% - 145px);padding:7px 10px;border:1px solid rgba(201,196,185,.85);border-radius:6px;background:rgba(255,254,250,.9);color:#555148;font-size:10px;line-height:1.5;pointer-events:none;box-shadow:0 2px 8px rgba(48,43,34,.06)}
+.nav-help b{color:#2e2c27;font-weight:700}
+.viewport canvas{touch-action:none;cursor:default}
+.viewport canvas:active{cursor:grabbing}
+@media(max-width:760px){.nav-widget{right:7px;top:7px;transform:scale(.82);transform-origin:top right}.nav-help{left:7px;bottom:7px;max-width:calc(100% - 105px);font-size:9px}}
+
+.viewport canvas{display:block;width:100%;height:100%;outline:none}
+.placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;pointer-events:none}
+.placeholder-inner{max-width:440px}
+.cube{width:50px;height:50px;margin:0 auto 14px;color:#9c927f}
+.placeholder strong{display:block;font-family:Georgia,serif;font-size:22px;font-weight:400;margin-bottom:7px}
+.placeholder span{color:#77746d;font-size:12px;line-height:1.55}
+.statusbar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 18px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.status{display:flex;align-items:center;gap:8px;min-width:0}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#b8b2a7;flex:0 0 auto}
+.status-dot.good{background:var(--green)}
+.status-dot.bad{background:var(--red)}
+.meta{white-space:nowrap}
+.model-card:fullscreen{width:100vw;height:100vh;border-radius:0;border:0;background:var(--white);display:flex;flex-direction:column}
+.model-card:fullscreen .card-head{padding:18px 24px}
+.model-card:fullscreen .viewport{height:auto;flex:1;min-height:0}
+.model-card:fullscreen .statusbar{padding:12px 24px}
+footer{max-width:1440px;margin:0 auto;padding:0 34px 36px;color:#8a867d;font-size:11px;line-height:1.6}
+@media(max-width:760px){header,main{padding-left:16px;padding-right:16px}.card-head{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start;width:100%}.viewport{height:390px}.statusbar{align-items:flex-start;flex-direction:column}.section-top{align-items:flex-start;flex-direction:column}footer{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">HAD Architect · Interactive BIM Preview</div>
+  <h1>SEDRA — 3D Model Review</h1>
+  <div class="subtitle">Gate A, Admin Building and Guard House. Select each IFC export to inspect the model in the browser. Orbit, zoom and pan are enabled; use Full Screen for a larger review area.</div>
+  <div class="local-note"><span class="dot"></span> Local file processing · IFC models remain on your device · parsing runs in a background worker</div>
+  <div id="engine-status" class="engine-status" role="status" aria-live="polite">Starting 3D viewer and IFC engine…</div>
+</header>
+<main>
+  <div class="section-top">
+    <h2>SEDRA Model Collection</h2>
+    <p>Load each IFC file separately · recommended desktop viewing</p>
+  </div>
+  <div class="model-list">
+    <section class="model-card" id="card-gate">
+      <div class="card-head">
+        <div class="card-title"><div class="index">01</div><div><h3>Gate A</h3><p>GG1 — Gate A · IFC 2x3</p></div></div>
+        <div class="controls">
+          <label class="file-label">Load Gate A IFC<input id="file-gate" type="file" accept=".ifc,application/octet-stream"></label>
+          <button id="reset-gate">Reset View</button>
+          <button class="primary" id="full-gate">Full Screen</button>
+        </div>
+      </div>
+      <div class="viewport" id="view-gate">
+        <div class="placeholder" id="placeholder-gate"><div class="placeholder-inner"><svg class="cube" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M32 5 55 18v27L32 59 9 45V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg><strong>Load Gate A model</strong><span>Select the verified <b>GG1-Gate A(2).ifc</b> file to render the 3D geometry.</span></div></div>
+        <div class="nav-widget" aria-label="gate model orientation cube">
+          <div class="viewcube-stage"><div class="viewcube-3d" id="cube-gate">
+            <button type="button" class="front" data-view="front" title="Front view">FRONT</button>
+            <button type="button" class="back" data-view="back" title="Back view">BACK</button>
+            <button type="button" class="right" data-view="right" title="Right view">RIGHT</button>
+            <button type="button" class="left" data-view="left" title="Left view">LEFT</button>
+            <button type="button" class="top" data-view="top" title="Top view">TOP</button>
+            <button type="button" class="bottom" data-view="bottom" title="Bottom view">BOTTOM</button>
+          </div></div>
+          <div class="nav-ring"></div><div class="nav-caption">View Cube</div>
+        </div>
+        <div class="nav-help"><b>Click model:</b> set pivot · <b>Wheel:</b> zoom · <b>Middle-drag:</b> pan · <b>Shift + middle-drag:</b> orbit</div>
+
+      </div>
+      <div class="statusbar"><div class="status"><span class="status-dot" id="dot-gate"></span><span id="status-gate">Waiting for IFC file</span></div><div class="meta" id="meta-gate">Orbit · Zoom · Pan · Full Screen</div></div>
+    </section>
+    <section class="model-card" id="card-admin">
+      <div class="card-head">
+        <div class="card-title"><div class="index">02</div><div><h3>Admin Building</h3><p>GA1 — Admin Building · IFC 2x3</p></div></div>
+        <div class="controls">
+          <label class="file-label">Load Admin IFC<input id="file-admin" type="file" accept=".ifc,application/octet-stream"></label>
+          <button id="reset-admin">Reset View</button>
+          <button class="primary" id="full-admin">Full Screen</button>
+        </div>
+      </div>
+      <div class="viewport" id="view-admin">
+        <div class="placeholder" id="placeholder-admin"><div class="placeholder-inner"><svg class="cube" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M32 5 55 18v27L32 59 9 45V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg><strong>Load Admin Building model</strong><span>Select the verified <b>GA1-Admin Building(2).ifc</b> file to render the 3D geometry.</span></div></div>
+        <div class="nav-widget" aria-label="admin model orientation cube">
+          <div class="viewcube-stage"><div class="viewcube-3d" id="cube-admin">
+            <button type="button" class="front" data-view="front" title="Front view">FRONT</button>
+            <button type="button" class="back" data-view="back" title="Back view">BACK</button>
+            <button type="button" class="right" data-view="right" title="Right view">RIGHT</button>
+            <button type="button" class="left" data-view="left" title="Left view">LEFT</button>
+            <button type="button" class="top" data-view="top" title="Top view">TOP</button>
+            <button type="button" class="bottom" data-view="bottom" title="Bottom view">BOTTOM</button>
+          </div></div>
+          <div class="nav-ring"></div><div class="nav-caption">View Cube</div>
+        </div>
+        <div class="nav-help"><b>Click model:</b> set pivot · <b>Wheel:</b> zoom · <b>Middle-drag:</b> pan · <b>Shift + middle-drag:</b> orbit</div>
+
+      </div>
+      <div class="statusbar"><div class="status"><span class="status-dot" id="dot-admin"></span><span id="status-admin">Waiting for IFC file</span></div><div class="meta" id="meta-admin">Orbit · Zoom · Pan · Full Screen</div></div>
+    </section>
+    <section class="model-card" id="card-guard">
+      <div class="card-head">
+        <div class="card-title"><div class="index">03</div><div><h3>Guard House</h3><p>GH1 — Guard House · IFC 2x3</p></div></div>
+        <div class="controls">
+          <label class="file-label">Load Guard House IFC<input id="file-guard" type="file" accept=".ifc,application/octet-stream"></label>
+          <button id="reset-guard">Reset View</button>
+          <button class="primary" id="full-guard">Full Screen</button>
+        </div>
+      </div>
+      <div class="viewport" id="view-guard">
+        <div class="placeholder" id="placeholder-guard"><div class="placeholder-inner"><svg class="cube" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M32 5 55 18v27L32 59 9 45V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg><strong>Load Guard House model</strong><span>Select the verified <b>GH1-Guard House(2).ifc</b> file to render the 3D geometry.</span></div></div>
+        <div class="nav-widget" aria-label="guard model orientation cube">
+          <div class="viewcube-stage"><div class="viewcube-3d" id="cube-guard">
+            <button type="button" class="front" data-view="front" title="Front view">FRONT</button>
+            <button type="button" class="back" data-view="back" title="Back view">BACK</button>
+            <button type="button" class="right" data-view="right" title="Right view">RIGHT</button>
+            <button type="button" class="left" data-view="left" title="Left view">LEFT</button>
+            <button type="button" class="top" data-view="top" title="Top view">TOP</button>
+            <button type="button" class="bottom" data-view="bottom" title="Bottom view">BOTTOM</button>
+          </div></div>
+          <div class="nav-ring"></div><div class="nav-caption">View Cube</div>
+        </div>
+        <div class="nav-help"><b>Click model:</b> set pivot · <b>Wheel:</b> zoom · <b>Middle-drag:</b> pan · <b>Shift + middle-drag:</b> orbit</div>
+
+      </div>
+      <div class="statusbar"><div class="status"><span class="status-dot" id="dot-guard"></span><span id="status-guard">Waiting for IFC file</span></div><div class="meta" id="meta-guard">Orbit · Zoom · Pan · Full Screen</div></div>
+    </section>
+  </div>
+</main>
+<footer>Review preview only — not connected to the live HAD Architect portfolio. Model files are read locally by your browser; the viewer does not upload them to this GitHub repository. Requires an internet connection to load the viewer libraries and WebAssembly engine.</footer>
+<script>
+(function(){
+  function showFailure(message){
+    var note=document.getElementById("engine-status");
+    if(note){note.textContent="3D viewer startup error: "+message;note.className="engine-status bad";}
+    ["gate","admin","guard"].forEach(function(id){
+      var status=document.getElementById("status-"+id);
+      if(status && status.textContent.indexOf("Ready")!==0){
+        status.textContent="Viewer did not start. Check the startup message above.";
+        var dot=document.getElementById("dot-"+id); if(dot) dot.className="status-dot bad";
+      }
+    });
+  }
+  window.addEventListener("error",function(e){
+    if(e && (e.message || (e.target && e.target.tagName==="SCRIPT"))){
+      showFailure(e.message || "A viewer module or library failed to load.");
+    }
+  },true);
+  window.addEventListener("unhandledrejection",function(e){
+    var reason=e && e.reason; showFailure(reason && reason.message ? reason.message : String(reason || "initialization failed"));
+  });
+})();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const IFC_API_URL = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/web-ifc-api.js";
+const IFC_WASM_ROOT = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/";
+const slots = {};
+const materialCache = new Map();
+
+const ifcWorkerSource = `
+import * as WEBIFC from "${IFC_API_URL}";
+const api = new WEBIFC.IfcAPI();
+api.SetWasmPath("${IFC_WASM_ROOT}", true);
+let initError = null;
+const ready = api.Init().then(
+  () => self.postMessage({type:"ready"}),
+  error => {
+    initError = error;
+    self.postMessage({type:"error", message:"IFC engine could not start: " + (error?.message || String(error))});
+    throw error;
+  }
+);
+self.onmessage = async event => {
+  const message = event.data || {};
+  if (message.type !== "load") return;
+  let modelID = null;
+  try {
+    await ready;
+    if (initError) throw initError;
+    self.postMessage({type:"status", message:"Opening IFC model in background…"});
+    const bytes = new Uint8Array(message.buffer);
+    modelID = api.OpenModel(bytes, {COORDINATE_TO_ORIGIN:true});
+    self.postMessage({type:"status", message:"Generating model geometry in background…"});
+    let meshCount = 0;
+    let triangleCount = 0;
+    api.StreamAllMeshes(modelID, (flatMesh, index, total) => {
+      const batch = [];
+      const placed = flatMesh.geometries;
+      for (let i=0; i<placed.size(); i++) {
+        const pg = placed.get(i);
+        const ifcGeometry = api.GetGeometry(modelID, pg.geometryExpressID);
+        const verts = api.GetVertexArray(ifcGeometry.GetVertexData(), ifcGeometry.GetVertexDataSize());
+        const sourceIndices = api.GetIndexArray(ifcGeometry.GetIndexData(), ifcGeometry.GetIndexDataSize());
+        const positions = new Float32Array(verts.length/2);
+        const normals = new Float32Array(verts.length/2);
+        for (let j=0; j<verts.length; j+=6) {
+          const k=(j/6)*3;
+          positions[k]=verts[j]; positions[k+1]=verts[j+1]; positions[k+2]=verts[j+2];
+          normals[k]=verts[j+3]; normals[k+1]=verts[j+4]; normals[k+2]=verts[j+5];
+        }
+        const indices = new Uint32Array(sourceIndices);
+        batch.push({
+          positions,
+          normals,
+          indices,
+          color:[pg.color.x,pg.color.y,pg.color.z,pg.color.w],
+          transform:Array.from(pg.flatTransformation)
+        });
+        meshCount++;
+        triangleCount += Math.floor(indices.length/3);
+        if (typeof ifcGeometry.delete === "function") ifcGeometry.delete();
+      }
+      if (batch.length) {
+        const transfers=[];
+        for (const item of batch) {
+          transfers.push(item.positions.buffer,item.normals.buffer,item.indices.buffer);
+        }
+        self.postMessage({type:"batch", index:index+1, total, meshes:batch}, transfers);
+      }
+    }, true);
+    api.CloseModel(modelID);
+    modelID = null;
+    self.postMessage({type:"done", meshCount, triangleCount});
+  } catch (error) {
+    if (modelID !== null) {
+      try { api.CloseModel(modelID); } catch (_) {}
+    }
+    self.postMessage({type:"error", message:error?.message || String(error)});
+  }
+};
+`;
+
+function materialFor(c) {
+  const key = [c.x,c.y,c.z,c.w].map(v => Number(v).toFixed(4)).join("-");
+  if (materialCache.has(key)) return materialCache.get(key);
+  const color = new THREE.Color().setRGB(c.x,c.y,c.z,THREE.SRGBColorSpace);
+  const m = new THREE.MeshStandardMaterial({
+    color, roughness:.86, metalness:.02, side:THREE.DoubleSide,
+    transparent:c.w < .999, opacity:c.w ?? 1
+  });
+  materialCache.set(key,m);
+  return m;
+}
+
+function makeViewer(id) {
+  const host = document.getElementById("view-"+id);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xeae7df);
+  const camera = new THREE.PerspectiveCamera(42, host.clientWidth/host.clientHeight, .01, 100000);
+  camera.up.set(0,0,1);
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setSize(host.clientWidth,host.clientHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  host.appendChild(renderer.domElement);
+  let controls = null;
+  function createControls(target = new THREE.Vector3(0,0,0)) {
+    if(controls) controls.dispose();
+    controls = new OrbitControls(camera,renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = .08;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 1.15;
+    controls.screenSpacePanning = true;
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN };
+    controls.minDistance = .01;
+    controls.maxDistance = 1000000;
+    controls.target.copy(target);
+    return controls;
+  }
+  createControls();
+  scene.add(new THREE.AmbientLight(0xffffff,1.35));
+  const key = new THREE.DirectionalLight(0xffffff,2.1); key.position.set(1,-1,2.4); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff,.75); fill.position.set(-1,1,1.4); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff,.45); rim.position.set(.3,1,-.4); scene.add(rim);
+  const group = new THREE.Group(); scene.add(group);
+  const pivotMarker = new THREE.Mesh(
+    new THREE.SphereGeometry(1,16,12),
+    new THREE.MeshBasicMaterial({color:0xb18a4d, depthTest:false, transparent:true, opacity:.95})
+  );
+  pivotMarker.visible = false;
+  pivotMarker.renderOrder = 20;
+  scene.add(pivotMarker);
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let leftClickStart = null;
+  let shiftOrbit = null;
+  let originalCamera = null;
+  let originalTarget = null;
+  let originalUp = camera.up.clone();
+  let modelLoaded = false;
+
+  let defaultDistance = 10;
+  let currentView = "iso";
+  function setStandardView(name) {
+    if(!modelLoaded) return;
+    const directions = {
+      front:  {dir:new THREE.Vector3(0,-1,0), up:new THREE.Vector3(0,0,1)},
+      back:   {dir:new THREE.Vector3(0,1,0),  up:new THREE.Vector3(0,0,1)},
+      left:   {dir:new THREE.Vector3(-1,0,0), up:new THREE.Vector3(0,0,1)},
+      right:  {dir:new THREE.Vector3(1,0,0),  up:new THREE.Vector3(0,0,1)},
+      top:    {dir:new THREE.Vector3(0,0,1),  up:new THREE.Vector3(0,1,0)},
+      bottom: {dir:new THREE.Vector3(0,0,-1), up:new THREE.Vector3(0,1,0)},
+      iso:    {dir:new THREE.Vector3(1.35,-1.65,2.35).normalize(), up:new THREE.Vector3(0,0,1)}
+    };
+    const view=directions[name]||directions.iso;
+    const target=controls.target.clone();
+    const distance=Math.max(camera.position.distanceTo(target),defaultDistance);
+    const nextPosition=target.clone().addScaledVector(view.dir,distance);
+    camera.up.copy(view.up);
+    camera.position.copy(nextPosition);
+    camera.lookAt(target);
+    camera.updateProjectionMatrix();
+    createControls(target);
+    controls.target.copy(target);
+    camera.position.copy(nextPosition);
+    camera.lookAt(target);
+    controls.update();
+    currentView=name;
+    updateViewCube();
+  }
+
+  function updateViewCube() {
+    const cube=document.getElementById("cube-"+id);
+    if(!cube) return;
+    cube.dataset.view=currentView;
+    cube.setAttribute("aria-label","Current view: "+currentView);
+    cube.querySelectorAll("[data-view]").forEach(button=>{
+      const active=button.dataset.view===currentView;
+      button.setAttribute("aria-pressed",active?"true":"false");
+    });
+  }
+
+  function pickPivot(event) {
+    const rect=renderer.domElement.getBoundingClientRect();
+    pointer.x=((event.clientX-rect.left)/rect.width)*2-1;
+    pointer.y=-((event.clientY-rect.top)/rect.height)*2+1;
+    raycaster.setFromCamera(pointer,camera);
+    const hits=raycaster.intersectObjects(group.children,true);
+    if(!hits.length) return;
+    controls.target.copy(hits[0].point);
+    pivotMarker.position.copy(hits[0].point);
+    controls.update();
+    setStatus(id,"Orbit pivot set · drag to rotate around this point");
+  }
+
+  renderer.domElement.style.touchAction = "none";
+  renderer.domElement.addEventListener("wheel",event=>event.preventDefault(),{passive:false,capture:true});
+  renderer.domElement.addEventListener("pointerdown",event=>{
+    if(event.button===1) event.preventDefault();
+    if(event.button===0) leftClickStart={id:event.pointerId,x:event.clientX,y:event.clientY};
+  },true);
+  renderer.domElement.addEventListener("mousedown",event=>{
+    if(event.button===1) event.preventDefault();
+  },true);
+  host.addEventListener("wheel",event=>{
+    if(event.cancelable) event.preventDefault();
+  },{passive:false,capture:true});
+
+  renderer.domElement.addEventListener("pointermove",event=>{
+    if(leftClickStart && leftClickStart.id===event.pointerId &&
+      Math.hypot(event.clientX-leftClickStart.x,event.clientY-leftClickStart.y)>5) leftClickStart=null;
+  });
+  renderer.domElement.addEventListener("pointerup",event=>{
+    if(leftClickStart && leftClickStart.id===event.pointerId &&
+      Math.hypot(event.clientX-leftClickStart.x,event.clientY-leftClickStart.y)<=5 && modelLoaded) pickPivot(event);
+    leftClickStart=null;
+  });
+  renderer.domElement.addEventListener("contextmenu",event=>event.preventDefault());
+
+  function onShiftOrbitDown(event) {
+    if(event.button!==1 || !event.shiftKey) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    shiftOrbit={id:event.pointerId,x:event.clientX,y:event.clientY};
+    renderer.domElement.style.cursor="grabbing";
+    try{renderer.domElement.setPointerCapture(event.pointerId);}catch(_){}
+  }
+  function onShiftOrbitMove(event) {
+    if(!shiftOrbit || shiftOrbit.id!==event.pointerId) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    const dx=event.clientX-shiftOrbit.x, dy=event.clientY-shiftOrbit.y;
+    shiftOrbit.x=event.clientX; shiftOrbit.y=event.clientY;
+    const toY=new THREE.Quaternion().setFromUnitVectors(camera.up.clone().normalize(),new THREE.Vector3(0,1,0));
+    const offset=camera.position.clone().sub(controls.target).applyQuaternion(toY);
+    const spherical=new THREE.Spherical().setFromVector3(offset);
+    const scale=2*Math.PI/Math.max(host.clientHeight,140);
+    spherical.theta-=dx*scale;
+    spherical.phi-=dy*scale;
+    spherical.makeSafe();
+    offset.setFromSpherical(spherical).applyQuaternion(toY.clone().invert());
+    camera.position.copy(controls.target).add(offset);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
+  function onShiftOrbitUp(event) {
+    if(!shiftOrbit || shiftOrbit.id!==event.pointerId) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    shiftOrbit=null;
+    renderer.domElement.style.cursor="";
+    try{renderer.domElement.releasePointerCapture(event.pointerId);}catch(_){}
+  }
+  renderer.domElement.addEventListener("pointerdown",onShiftOrbitDown,true);
+  renderer.domElement.addEventListener("pointermove",onShiftOrbitMove,true);
+  renderer.domElement.addEventListener("pointerup",onShiftOrbitUp,true);
+  renderer.domElement.addEventListener("pointercancel",onShiftOrbitUp,true);
+
+  host.querySelectorAll(".viewcube-3d [data-view]").forEach(button=>{
+    button.addEventListener("click",event=>{
+      event.preventDefault(); event.stopPropagation();
+      setStandardView(button.dataset.view);
+    });
+  });
+  updateViewCube();
+
+  function resize() {
+    const w=Math.max(1,host.clientWidth), h=Math.max(1,host.clientHeight);
+    camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
+  }
+  const observer = new ResizeObserver(resize); observer.observe(host);
+  function reset() {
+    if(!originalCamera) return;
+    const target=originalTarget.clone();
+    const position=originalCamera.clone();
+    camera.up.copy(originalUp);
+    createControls(target);
+    controls.target.copy(target);
+    camera.position.copy(position);
+    camera.lookAt(target);
+    pivotMarker.visible=false;
+    camera.updateProjectionMatrix(); controls.update();
+    currentView="iso";
+    updateViewCube();
+  }
+  function frameModel() {
+    group.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(group);
+    if(bounds.isEmpty()) throw new Error("No renderable 3D geometry found in this IFC.");
+    const center=bounds.getCenter(new THREE.Vector3());
+    const size=bounds.getSize(new THREE.Vector3());
+    group.position.sub(center);
+    group.updateMatrixWorld(true);
+    const span=Math.max(size.x,size.y,size.z,1);
+    const radius=Math.max(size.length()*.5,.01);
+    controls.target.set(0,0,0);
+    camera.up.set(0,0,1);
+    camera.fov=52;
+    const aspect=Math.max(host.clientWidth/Math.max(host.clientHeight,1),.15);
+    const verticalHalf=THREE.MathUtils.degToRad(camera.fov*.5);
+    const effectiveHalf=Math.atan(Math.tan(verticalHalf)*Math.min(1,aspect));
+    const distance=radius/Math.sin(effectiveHalf)*1.06;
+    const isoDirection=new THREE.Vector3(1.35,-1.65,2.55).normalize();
+    defaultDistance=distance;
+    camera.near=Math.max(distance/20000,.0005);
+    camera.far=Math.max(distance*100,span*100);
+    const initialCameraOffset=isoDirection.clone().multiplyScalar(distance);
+    camera.position.copy(initialCameraOffset);
+    camera.updateProjectionMatrix();
+    controls.minDistance=Math.max(radius*.012,.005);
+    controls.maxDistance=distance*80;
+    pivotMarker.scale.setScalar(span*.007);
+    pivotMarker.visible=false;
+    createControls(new THREE.Vector3(0,0,0));
+    controls.target.set(0,0,0);
+    controls.minDistance=Math.max(radius*.012,.005);
+    controls.maxDistance=distance*80;
+    camera.position.copy(initialCameraOffset);
+    camera.lookAt(0,0,0);
+    controls.update();
+    originalCamera=camera.position.clone();
+    originalTarget=controls.target.clone();
+    originalUp=camera.up.clone();
+    currentView="iso";
+    modelLoaded=true;
+    resize();
+    updateViewCube();
+  }
+  function clear() {
+    for (const child of [...group.children]) {
+      child.traverse?.(o=>{if(o.geometry)o.geometry.dispose();});
+      group.remove(child);
+    }
+    pivotMarker.visible=false;
+    modelLoaded=false;
+  }
+  function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); }
+  animate();
+  slots[id]={id,host,scene,camera,renderer,controls,group,frameModel,reset,clear,observer,worker:null,workerUrl:null,modelID:null,setStandardView};
+  return slots[id];
+}
+
+for (const id of ["gate","admin","guard"]) {
+  const slot=makeViewer(id);
+  const input=document.getElementById("file-"+id);
+  input.addEventListener("change",async()=>{
+    const file=input.files?.[0]; if(!file) return;
+    await loadModel(id,file);
+    input.value="";
+  });
+  document.getElementById("reset-"+id).addEventListener("click",()=>slot.reset());
+  document.getElementById("full-"+id).addEventListener("click",async()=>{
+    const card=document.getElementById("card-"+id);
+    try {
+      if(document.fullscreenElement===card) await document.exitFullscreen();
+      else await card.requestFullscreen();
+    } catch(e) { setStatus(id,"Full Screen is unavailable in this browser.",true); }
+  });
+}
+
+document.addEventListener("fullscreenchange",()=>{
+  for (const id of ["gate","admin","guard"]) {
+    const card=document.getElementById("card-"+id);
+    document.getElementById("full-"+id).textContent=document.fullscreenElement===card?"Exit Full Screen":"Full Screen";
+    slots[id].renderer.setSize(slots[id].host.clientWidth,slots[id].host.clientHeight);
+  }
+});
+
+function setStatus(id,message,bad=false) {
+  document.getElementById("status-"+id).textContent=message;
+  const dot=document.getElementById("dot-"+id);
+  dot.className="status-dot"+(bad?" bad":message.startsWith("Ready")?" good":"");
+}
+
+async function loadModel(id,file) {
+  const slot=slots[id];
+  const button=document.querySelector("#card-"+id+" .file-label");
+  const statusMeta=document.getElementById("meta-"+id);
+  setStatus(id,"Preparing background IFC loader…");
+  statusMeta.textContent=(file.size/1048576).toFixed(1)+" MB · Background processing";
+  button.style.opacity=".65";
+  button.style.pointerEvents="none";
+
+  if(slot.worker) {
+    slot.worker.terminate();
+    slot.worker=null;
+  }
+  if(slot.workerUrl) {
+    URL.revokeObjectURL(slot.workerUrl);
+    slot.workerUrl=null;
+  }
+  slot.clear();
+  document.getElementById("placeholder-"+id).style.display="grid";
+
+  try {
+    const buffer=await file.arrayBuffer();
+    setStatus(id,"Starting IFC parser in background — this tab remains responsive…");
+    const blob=new Blob([ifcWorkerSource],{type:"text/javascript"});
+    const workerUrl=URL.createObjectURL(blob);
+    const worker=new Worker(workerUrl,{type:"module",name:"had-ifc-loader-"+id});
+    slot.worker=worker;
+    slot.workerUrl=workerUrl;
+    let meshCount=0;
+    let triangleCount=0;
+
+    const finishWorker=()=>{
+      if(slot.worker===worker) {
+        worker.terminate();
+        slot.worker=null;
+      }
+      if(slot.workerUrl===workerUrl) {
+        URL.revokeObjectURL(workerUrl);
+        slot.workerUrl=null;
+      }
+      button.style.opacity="1";
+      button.style.pointerEvents="";
+    };
+
+    worker.addEventListener("message",event=>{
+      if(slot.worker!==worker) return;
+      const data=event.data||{};
+      if(data.type==="ready") {
+        setStatus(id,"IFC engine ready — opening model in background…");
+        return;
+      }
+      if(data.type==="status") {
+        setStatus(id,data.message||"Processing IFC in background…");
+        return;
+      }
+      if(data.type==="batch") {
+        try {
+          for(const item of (data.meshes||[])) {
+            const geometry=new THREE.BufferGeometry();
+            geometry.setAttribute("position",new THREE.BufferAttribute(item.positions,3));
+            geometry.setAttribute("normal",new THREE.BufferAttribute(item.normals,3));
+            geometry.setIndex(new THREE.BufferAttribute(item.indices,1));
+            const c=item.color||[.78,.78,.76,1];
+            const material=materialFor({x:c[0],y:c[1],z:c[2],w:c[3]});
+            const object=new THREE.Mesh(geometry,material);
+            object.matrix.fromArray(item.transform);
+            object.matrixAutoUpdate=false;
+            object.frustumCulled=true;
+            slot.group.add(object);
+            meshCount++;
+            triangleCount+=Math.floor(item.indices.length/3);
+          }
+          const total=Math.max(1,Number(data.total)||1);
+          const current=Math.max(0,Number(data.index)||0);
+          const percent=Math.min(100,Math.round(current/total*100));
+          setStatus(id,"Building model geometry · "+current+" / "+total+" batches ("+percent+"%)");
+          statusMeta.textContent=meshCount.toLocaleString()+" mesh parts · "+triangleCount.toLocaleString()+" triangles";
+        } catch(error) {
+          setStatus(id,"Could not assemble 3D geometry: "+(error?.message||String(error)),true);
+          slot.clear();
+          document.getElementById("placeholder-"+id).style.display="grid";
+          finishWorker();
+        }
+        return;
+      }
+      if(data.type==="done") {
+        try {
+          if(meshCount===0) throw new Error("No renderable 3D meshes were returned by the IFC engine.");
+          slot.frameModel();
+          document.getElementById("placeholder-"+id).style.display="none";
+          setStatus(id,"Ready · "+file.name);
+          statusMeta.textContent=meshCount.toLocaleString()+" mesh parts · "+triangleCount.toLocaleString()+" triangles";
+        } catch(error) {
+          slot.clear();
+          document.getElementById("placeholder-"+id).style.display="grid";
+          setStatus(id,"Could not frame this model: "+(error?.message||String(error)),true);
+        } finally {
+          finishWorker();
+        }
+        return;
+      }
+      if(data.type==="error") {
+        slot.clear();
+        document.getElementById("placeholder-"+id).style.display="grid";
+        setStatus(id,"Could not render this IFC: "+(data.message||"unknown background loader error"),true);
+        statusMeta.textContent="Check IFC export or browser compatibility";
+        finishWorker();
+      }
+    });
+
+    worker.addEventListener("error",event=>{
+      if(slot.worker!==worker) return;
+      setStatus(id,"Background IFC worker failed: "+(event.message||"unknown worker error"),true);
+      statusMeta.textContent="Try reloading the preview and loading this model again";
+      finishWorker();
+    });
+
+    worker.postMessage({type:"load",buffer},[buffer]);
+  } catch(error) {
+    console.error(error);
+    setStatus(id,"Could not start background IFC loading: "+(error?.message||String(error)),true);
+    statusMeta.textContent="Check browser compatibility or reload the preview";
+    if(slot.worker) { slot.worker.terminate(); slot.worker=null; }
+    if(slot.workerUrl) { URL.revokeObjectURL(slot.workerUrl); slot.workerUrl=null; }
+    button.style.opacity="1";
+    button.style.pointerEvents="";
+  }
+}
+</script>
+</body>
+</html>
