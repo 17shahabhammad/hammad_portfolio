@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HAD Architect | SEDRA 3D Model Preview</title>
+<style>
+:root{--ink:#262521;--muted:#77746d;--line:#dedbd4;--paper:#f5f3ee;--white:#fffefa;--sand:#e9e4d9;--accent:#9b8867;--green:#55765e;--red:#9b5a50}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{max-width:1440px;margin:0 auto;padding:38px 34px 24px;border-bottom:1px solid var(--line)}
+.kicker{font-size:11px;letter-spacing:.19em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:clamp(30px,4vw,48px);letter-spacing:-.035em;margin:12px 0 8px}
+.subtitle{color:var(--muted);font-size:14px;line-height:1.6;max-width:760px}
+.local-note{display:inline-flex;align-items:center;gap:8px;border:1px solid #d6dfd2;background:#f2f6f0;color:#47634a;padding:7px 10px;border-radius:30px;font-size:11px;margin-top:16px}
+.engine-status{display:block;margin-top:10px;font-size:12px;color:var(--muted);min-height:18px}.engine-status.good{color:var(--green)}.engine-status.bad{color:var(--red)}
+.dot{width:7px;height:7px;border-radius:50%;background:#6c966d}
+main{max-width:1440px;margin:0 auto;padding:24px 34px 60px}
+.section-top{display:flex;justify-content:space-between;gap:20px;align-items:end;margin:8px 0 18px}
+.section-top h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;margin:0}
+.section-top p{font-size:12px;color:var(--muted);margin:0}
+.model-list{display:grid;grid-template-columns:1fr;gap:22px}
+.model-card{background:var(--white);border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:0 5px 24px rgba(48,43,34,.045)}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:17px 20px;border-bottom:1px solid var(--line)}
+.card-title{display:flex;gap:14px;align-items:center;min-width:0}
+.index{font-family:Georgia,serif;font-size:22px;color:#a39883}
+.card-title h3{font-size:16px;font-weight:600;margin:0 0 4px}
+.card-title p{font-size:11px;color:var(--muted);margin:0}
+.controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+button,.file-label{border:1px solid #c9c4b9;background:#fffefa;color:#33312b;border-radius:6px;padding:9px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover,.file-label:hover{background:#f1eee7;border-color:#a9a18f}
+button.primary{background:#292822;color:#fffefa;border-color:#292822}
+button.primary:hover{background:#454239}
+button:disabled{opacity:.55;cursor:wait}
+.file-label input{display:none}
+.viewport{height:500px;position:relative;background:linear-gradient(180deg,#efede7,#e8e5dd);overflow:hidden}
+.viewport canvas{display:block;width:100%;height:100%;outline:none}
+.placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;pointer-events:none}
+.placeholder-inner{max-width:440px}
+.cube{width:50px;height:50px;margin:0 auto 14px;color:#9c927f}
+.placeholder strong{display:block;font-family:Georgia,serif;font-size:22px;font-weight:400;margin-bottom:7px}
+.placeholder span{color:#77746d;font-size:12px;line-height:1.55}
+.statusbar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 18px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.status{display:flex;align-items:center;gap:8px;min-width:0}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#b8b2a7;flex:0 0 auto}
+.status-dot.good{background:var(--green)}
+.status-dot.bad{background:var(--red)}
+.meta{white-space:nowrap}
+.model-card:fullscreen{width:100vw;height:100vh;border-radius:0;border:0;background:var(--white);display:flex;flex-direction:column}
+.model-card:fullscreen .card-head{padding:18px 24px}
+.model-card:fullscreen .viewport{height:auto;flex:1;min-height:0}
+.model-card:fullscreen .statusbar{padding:12px 24px}
+footer{max-width:1440px;margin:0 auto;padding:0 34px 36px;color:#8a867d;font-size:11px;line-height:1.6}
+@media(max-width:760px){header,main{padding-left:16px;padding-right:16px}.card-head{align-items:flex-start;flex-direction:column}.controls{justify-content:flex-start;width:100%}.viewport{height:390px}.statusbar{align-items:flex-start;flex-direction:column}.section-top{align-items:flex-start;flex-direction:column}footer{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="kicker">HAD Architect · Interactive BIM Preview</div>
+  <h1>SEDRA — 3D Model Review</h1>
+  <div class="subtitle">Gate A, Admin Building and Guard House. Select each IFC export to inspect the model in the browser. Orbit, zoom and pan are enabled; use Full Screen for a larger review area.</div>
+  <div class="local-note"><span class="dot"></span> Local file processing · IFC models remain on your device</div>
+  <div id="engine-status" class="engine-status" role="status" aria-live="polite">Starting 3D viewer and IFC engine…</div>
+</header>
+<main>
+  <div class="section-top">
+    <h2>SEDRA Model Collection</h2>
+    <p>Load each IFC file separately · recommended desktop viewing</p>
+  </div>
+  <div class="model-list">
+    <section class="model-card" id="card-gate">
+      <div class="card-head">
+        <div class="card-title"><div class="index">01</div><div><h3>Gate A</h3><p>GG1 — Gate A · IFC 2x3</p></div></div>
+        <div class="controls">
+          <label class="file-label">Load Gate A IFC<input id="file-gate" type="file" accept=".ifc,application/octet-stream"></label>
+          <button id="reset-gate">Reset View</button>
+          <button class="primary" id="full-gate">Full Screen</button>
+        </div>
+      </div>
+      <div class="viewport" id="view-gate">
+        <div class="placeholder" id="placeholder-gate"><div class="placeholder-inner"><svg class="cube" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M32 5 55 18v27L32 59 9 45V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg><strong>Load Gate A model</strong><span>Select the verified <b>GG1-Gate A(2).ifc</b> file to render the 3D geometry.</span></div></div>
+      </div>
+      <div class="statusbar"><div class="status"><span class="status-dot" id="dot-gate"></span><span id="status-gate">Waiting for IFC file</span></div><div class="meta" id="meta-gate">Orbit · Zoom · Pan · Full Screen</div></div>
+    </section>
+    <section class="model-card" id="card-admin">
+      <div class="card-head">
+        <div class="card-title"><div class="index">02</div><div><h3>Admin Building</h3><p>GA1 — Admin Building · IFC 2x3</p></div></div>
+        <div class="controls">
+          <label class="file-label">Load Admin IFC<input id="file-admin" type="file" accept=".ifc,application/octet-stream"></label>
+          <button id="reset-admin">Reset View</button>
+          <button class="primary" id="full-admin">Full Screen</button>
+        </div>
+      </div>
+      <div class="viewport" id="view-admin">
+        <div class="placeholder" id="placeholder-admin"><div class="placeholder-inner"><svg class="cube" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M32 5 55 18v27L32 59 9 45V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg><strong>Load Admin Building model</strong><span>Select the verified <b>GA1-Admin Building(2).ifc</b> file to render the 3D geometry.</span></div></div>
+      </div>
+      <div class="statusbar"><div class="status"><span class="status-dot" id="dot-admin"></span><span id="status-admin">Waiting for IFC file</span></div><div class="meta" id="meta-admin">Orbit · Zoom · Pan · Full Screen</div></div>
+    </section>
+    <section class="model-card" id="card-guard">
+      <div class="card-head">
+        <div class="card-title"><div class="index">03</div><div><h3>Guard House</h3><p>GH1 — Guard House · IFC 2x3</p></div></div>
+        <div class="controls">
+          <label class="file-label">Load Guard House IFC<input id="file-guard" type="file" accept=".ifc,application/octet-stream"></label>
+          <button id="reset-guard">Reset View</button>
+          <button class="primary" id="full-guard">Full Screen</button>
+        </div>
+      </div>
+      <div class="viewport" id="view-guard">
+        <div class="placeholder" id="placeholder-guard"><div class="placeholder-inner"><svg class="cube" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M32 5 55 18v27L32 59 9 45V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg><strong>Load Guard House model</strong><span>Select the verified <b>GH1-Guard House(2).ifc</b> file to render the 3D geometry.</span></div></div>
+      </div>
+      <div class="statusbar"><div class="status"><span class="status-dot" id="dot-guard"></span><span id="status-guard">Waiting for IFC file</span></div><div class="meta" id="meta-guard">Orbit · Zoom · Pan · Full Screen</div></div>
+    </section>
+  </div>
+</main>
+<footer>Review preview only — not connected to the live HAD Architect portfolio. Model files are read locally by your browser; the viewer does not upload them to this GitHub repository. Requires an internet connection to load the viewer libraries and WebAssembly engine.</footer>
+<script>
+(function(){
+  function showFailure(message){
+    var note=document.getElementById("engine-status");
+    if(note){note.textContent="3D viewer startup error: "+message;note.className="engine-status bad";}
+    ["gate","admin","guard"].forEach(function(id){
+      var status=document.getElementById("status-"+id);
+      if(status && status.textContent.indexOf("Ready")!==0){
+        status.textContent="Viewer did not start. Check the startup message above.";
+        var dot=document.getElementById("dot-"+id); if(dot) dot.className="status-dot bad";
+      }
+    });
+  }
+  window.addEventListener("error",function(e){
+    if(e && (e.message || (e.target && e.target.tagName==="SCRIPT"))){
+      showFailure(e.message || "A viewer module or library failed to load.");
+    }
+  },true);
+  window.addEventListener("unhandledrejection",function(e){
+    var reason=e && e.reason; showFailure(reason && reason.message ? reason.message : String(reason || "initialization failed"));
+  });
+})();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import * as WEBIFC from "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/web-ifc-api.js";
+
+const wasmRoot = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/";
+const api = new WEBIFC.IfcAPI();
+api.SetWasmPath(wasmRoot, true);
+try {
+  await api.Init(undefined, true);
+  const note=document.getElementById("engine-status");
+  if(note){note.textContent="3D viewer ready — choose an IFC file below.";note.className="engine-status good";}
+} catch (error) {
+  const message=error && error.message ? error.message : String(error);
+  const note=document.getElementById("engine-status");
+  if(note){note.textContent="Could not start the IFC engine: "+message;note.className="engine-status bad";}
+  throw error;
+}
+
+const slots = {};
+const materialCache = new Map();
+
+function materialFor(c) {
+  const key = [c.x,c.y,c.z,c.w].map(v => Number(v).toFixed(4)).join("-");
+  if (materialCache.has(key)) return materialCache.get(key);
+  const color = new THREE.Color().setRGB(c.x,c.y,c.z,THREE.SRGBColorSpace);
+  const m = new THREE.MeshStandardMaterial({
+    color, roughness:.86, metalness:.02, side:THREE.DoubleSide,
+    transparent:c.w < .999, opacity:c.w ?? 1
+  });
+  materialCache.set(key,m);
+  return m;
+}
+
+function makeViewer(id) {
+  const host = document.getElementById("view-"+id);
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xeae7df);
+  const camera = new THREE.PerspectiveCamera(42, host.clientWidth/host.clientHeight, .01, 100000);
+  camera.up.set(0,0,1);
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setSize(host.clientWidth,host.clientHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  host.appendChild(renderer.domElement);
+  const controls = new OrbitControls(camera,renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = .07;
+  controls.enablePan = true;
+  controls.screenSpacePanning = true;
+  controls.minDistance = .05;
+  controls.maxDistance = 100000;
+  scene.add(new THREE.AmbientLight(0xffffff,1.35));
+  const key = new THREE.DirectionalLight(0xffffff,2.1); key.position.set(1,-1,2.4); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff,.75); fill.position.set(-1,1,1.4); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffffff,.45); rim.position.set(.3,1,-.4); scene.add(rim);
+  const group = new THREE.Group(); scene.add(group);
+  let originalCamera = null;
+  let originalTarget = null;
+  function resize() {
+    const w=Math.max(1,host.clientWidth), h=Math.max(1,host.clientHeight);
+    camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
+  }
+  const observer = new ResizeObserver(resize); observer.observe(host);
+  function reset() {
+    if(!originalCamera) return;
+    camera.position.copy(originalCamera);
+    controls.target.copy(originalTarget);
+    camera.updateProjectionMatrix(); controls.update();
+  }
+  function frameModel() {
+    group.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(group);
+    if(bounds.isEmpty()) throw new Error("No renderable 3D geometry found in this IFC.");
+    const center=bounds.getCenter(new THREE.Vector3());
+    const size=bounds.getSize(new THREE.Vector3());
+    group.position.sub(center);
+    group.updateMatrixWorld(true);
+    const span=Math.max(size.x,size.y,size.z,1);
+    controls.target.set(0,0,0);
+    camera.near=Math.max(span/10000,.001);
+    camera.far=span*100;
+    camera.position.set(span*1.55,-span*1.9,span*1.35);
+    camera.updateProjectionMatrix();
+    controls.minDistance=span*.025; controls.maxDistance=span*40;
+    controls.update();
+    originalCamera=camera.position.clone();
+    originalTarget=controls.target.clone();
+    resize();
+  }
+  function clear() {
+    for (const child of [...group.children]) {
+      child.traverse?.(o=>{if(o.geometry)o.geometry.dispose();});
+      group.remove(child);
+    }
+  }
+  function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); }
+  animate();
+  slots[id]={id,host,scene,camera,renderer,controls,group,frameModel,reset,clear,observer,modelID:null};
+  return slots[id];
+}
+
+for (const id of ["gate","admin","guard"]) {
+  const slot=makeViewer(id);
+  const input=document.getElementById("file-"+id);
+  input.addEventListener("change",async()=>{
+    const file=input.files?.[0]; if(!file) return;
+    await loadModel(id,file);
+    input.value="";
+  });
+  document.getElementById("reset-"+id).addEventListener("click",()=>slot.reset());
+  document.getElementById("full-"+id).addEventListener("click",async()=>{
+    const card=document.getElementById("card-"+id);
+    try {
+      if(document.fullscreenElement===card) await document.exitFullscreen();
+      else await card.requestFullscreen();
+    } catch(e) { setStatus(id,"Full Screen is unavailable in this browser.",true); }
+  });
+}
+
+document.addEventListener("fullscreenchange",()=>{
+  for (const id of ["gate","admin","guard"]) {
+    const card=document.getElementById("card-"+id);
+    document.getElementById("full-"+id).textContent=document.fullscreenElement===card?"Exit Full Screen":"Full Screen";
+    slots[id].renderer.setSize(slots[id].host.clientWidth,slots[id].host.clientHeight);
+  }
+});
+
+function setStatus(id,message,bad=false) {
+  document.getElementById("status-"+id).textContent=message;
+  const dot=document.getElementById("dot-"+id);
+  dot.className="status-dot"+(bad?" bad":message.startsWith("Ready")?" good":"");
+}
+
+async function loadModel(id,file) {
+  const slot=slots[id];
+  const button=document.querySelector("#card-"+id+" .file-label");
+  setStatus(id,"Reading "+file.name+"…");
+  document.getElementById("meta-"+id).textContent=(file.size/1048576).toFixed(1)+" MB · Local file";
+  button.style.opacity=".65";
+  try {
+    slot.clear();
+    if(slot.modelID!==null) { api.CloseModel(slot.modelID); slot.modelID=null; }
+    document.getElementById("placeholder-"+id).style.display="grid";
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    setStatus(id,"Parsing IFC and building 3D geometry…");
+    const modelID=api.OpenModel(bytes,{COORDINATE_TO_ORIGIN:true});
+    slot.modelID=modelID;
+    let meshCount=0, triangleCount=0;
+    api.StreamAllMeshes(modelID,(flatMesh)=>{
+      const placed=flatMesh.geometries;
+      for(let i=0;i<placed.size();i++){
+        const pg=placed.get(i);
+        const ifcGeometry=api.GetGeometry(modelID,pg.geometryExpressID);
+        const verts=api.GetVertexArray(ifcGeometry.GetVertexData(),ifcGeometry.GetVertexDataSize());
+        const indices=new Uint32Array(api.GetIndexArray(ifcGeometry.GetIndexData(),ifcGeometry.GetIndexDataSize()));
+        const positions=new Float32Array(verts.length/2);
+        const normals=new Float32Array(verts.length/2);
+        for(let j=0;j<verts.length;j+=6){
+          const k=(j/6)*3;
+          positions[k]=verts[j]; positions[k+1]=verts[j+1]; positions[k+2]=verts[j+2];
+          normals[k]=verts[j+3]; normals[k+1]=verts[j+4]; normals[k+2]=verts[j+5];
+        }
+        const geometry=new THREE.BufferGeometry();
+        geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
+        geometry.setAttribute("normal",new THREE.BufferAttribute(normals,3));
+        geometry.setIndex(new THREE.BufferAttribute(indices,1));
+        const material=materialFor(pg.color);
+        const object=new THREE.Mesh(geometry,material);
+        object.matrix.fromArray(pg.flatTransformation);
+        object.matrixAutoUpdate=false;
+        object.frustumCulled=true;
+        slot.group.add(object);
+        meshCount++; triangleCount+=Math.floor(indices.length/3);
+        ifcGeometry.delete();
+      }
+      // StreamAllMeshes owns the callback mesh lifetime in this web-ifc build.
+      // Geometry buffers have already been copied into Three.js above; do not call flatMesh.delete().
+    },true);
+    if(meshCount===0) throw new Error("No renderable meshes were returned by the IFC geometry loader.");
+    slot.frameModel();
+    document.getElementById("placeholder-"+id).style.display="none";
+    setStatus(id,"Ready · "+file.name);
+    document.getElementById("meta-"+id).textContent=meshCount.toLocaleString()+" mesh parts · "+triangleCount.toLocaleString()+" triangles";
+  } catch(error) {
+    console.error(error);
+    slot.clear();
+    document.getElementById("placeholder-"+id).style.display="grid";
+    setStatus(id,"Could not render this IFC: "+(error?.message||"unknown error"),true);
+    document.getElementById("meta-"+id).textContent="Check browser console for detail";
+  } finally {
+    button.style.opacity="1";
+  }
+}
+</script>
+</body>
+</html>
