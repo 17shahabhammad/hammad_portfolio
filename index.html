@@ -306,7 +306,7 @@ function initProjectModelViewer(section){
  const progress=section.querySelector("[data-model-progress]");
  const filename=section.querySelector("[data-model-filename]");
  const panel=section.querySelector(".model-panel");
- const files=new Map(),urls=new Map();
+ const files=new Map();
  let active=0,currentUrl=null;
  const setStatus=(message,type="")=>{status.textContent=message;dot.className="model-status-dot"+(type?" "+type:"");};
  const formatSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":(n/1024).toFixed(1)+" KB";
@@ -318,6 +318,7 @@ function initProjectModelViewer(section){
  };
  const loadActive=()=>{
   const file=files.get(active);
+  if(currentUrl){viewer.removeAttribute("src");URL.revokeObjectURL(currentUrl);currentUrl=null;}
   if(!file){
    viewer.removeAttribute("src");empty.hidden=false;
    empty.querySelector("h3").textContent="Load the "+models[active].label+" model";
@@ -325,8 +326,7 @@ function initProjectModelViewer(section){
    progress.hidden=true;filename.textContent="Left-drag orbit · wheel zoom · right-drag pan";
    setStatus("Waiting for "+models[active].label);return;
   }
-  if(urls.has(active))URL.revokeObjectURL(urls.get(active));
-  const url=URL.createObjectURL(file);urls.set(active,url);currentUrl=url;
+  const url=URL.createObjectURL(file);currentUrl=url;
   viewer.src=url;empty.hidden=false;progress.hidden=false;progress.value=0;
   filename.textContent=file.name+" · "+formatSize(file.size);setStatus("Loading "+models[active].label+"…");
  };
@@ -380,7 +380,7 @@ function initProjectModelViewer(section){
  viewer.addEventListener("error",event=>{
   progress.hidden=true;setStatus("Could not load GLB: "+(event.detail?.type||event.detail?.message||"unknown loading error"),"bad");
  });
- window.addEventListener("beforeunload",()=>urls.forEach(url=>URL.revokeObjectURL(url)));
+ window.addEventListener("beforeunload",()=>{if(currentUrl)URL.revokeObjectURL(currentUrl);});
 }
 
 function showProject(n){const p=projects.find(x=>x.n===n);if(!p)return;home.classList.add('hidden');detail.classList.add('active');const parts=p.parts||[{title:'Complete architectural drawing set',folder:p.folder,pages:p.pages,desc:'All sheets in the supplied drawing set, kept in original order.'}];content.innerHTML=`<section class="detailhead">${renderProjectGallery(p)}<div class="detailtitle"><div class="eyebrow">Project ${p.n} · Architecture</div><h1>${safeText(p.title)}</h1><div class="projectbrief">${p.briefHtml||`<p>${safeText(p.desc)}</p>`}</div><div class="detailmeta">${safeText(p.loc)}</div></div></section>${renderProjectModelViewer(p)}<section><div class="sectionhead"><div><div class="eyebrow">Project documentation</div><h2>Drawing sheets</h2></div><p>Browse the sheets in their original order. Scroll over a sheet to zoom, drag to pan, or double-click to toggle zoom.</p></div><div class="parts">${parts.map(documentBlock).join('')}</div></section>`;content.querySelectorAll('.sheetviewer').forEach(initSheetViewer);const gallery=content.querySelector('[data-gallery]');if(gallery)initProjectGallery(gallery);
