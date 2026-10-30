@@ -285,7 +285,7 @@ const projectModelData = {
 const projectModelNotices = {
  "07":"The file supplied for Dubai South is FBX, not GLB. It is intentionally not loaded into this GLB viewer."
 };
-function safeModelName(s){return String(s||"").toLowerCase().replace(/\\.[^.]+$/,"").replace(/[^a-z0-9]/g,"");}
+function safeModelName(s){return String(s||"").toLowerCase().replace(".glb","").replace(/[^a-z0-9]/g,"");}
 function renderProjectModelViewer(p){
  const models=projectModelData[p.n]||[];
  const notice=projectModelNotices[p.n];
