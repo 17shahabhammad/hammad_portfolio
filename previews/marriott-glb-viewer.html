@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HAD Architect | Marriott 3D Model Preview</title>
+<style>
+:root{--ink:#282720;--muted:#77746b;--line:#dedbd3;--paper:#f4f2ed;--white:#fffefa;--accent:#9b8867;--dark:#292822;--green:#53785c;--red:#a25b50}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+header{max-width:1480px;margin:auto;padding:32px 34px 22px;border-bottom:1px solid var(--line)}
+.kicker{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font:400 clamp(29px,3.7vw,46px)/1.12 Georgia,"Times New Roman",serif;letter-spacing:-.035em;margin:11px 0 8px}
+.subtitle{font-size:13px;line-height:1.6;color:var(--muted);max-width:780px}
+.local-note{display:inline-flex;gap:8px;align-items:center;margin-top:14px;padding:7px 10px;border:1px solid #d6dfd2;border-radius:30px;color:#47634a;background:#f2f6f0;font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%;background:#71916f}
+main{max-width:1480px;margin:auto;padding:22px 34px 48px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:13px}
+.left-tools,.right-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+button,.file-button{font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 13px;border:1px solid #c9c4b9;border-radius:6px;background:var(--white);color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+button:hover,.file-button:hover{background:#eeebe4;border-color:#a79f8e}
+button.primary{background:var(--dark);color:var(--white);border-color:var(--dark)}
+button.primary:hover{background:#444138}
+button:disabled{opacity:.5;cursor:default}
+.file-button input{display:none}
+.view-label{font-size:10px;color:var(--muted);letter-spacing:.13em;text-transform:uppercase;font-weight:700;margin-right:3px}
+.viewer-shell{background:var(--white);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 5px 24px rgba(48,43,34,.045)}
+.viewer-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:13px 17px;border-bottom:1px solid var(--line)}
+.viewer-head strong{font:400 20px Georgia,"Times New Roman",serif}
+.viewer-head span{font-size:11px;color:var(--muted)}
+.stage{height:min(70vh,720px);min-height:440px;position:relative;background:linear-gradient(180deg,#eeece6,#e5e2da);overscroll-behavior:contain}
+model-viewer{display:block;width:100%;height:100%;background:transparent;--poster-color:transparent;touch-action:none;overscroll-behavior:contain}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;pointer-events:none}
+.empty-card{max-width:480px}
+.empty-icon{width:54px;height:54px;margin:0 auto 15px;color:#9b907d}
+.empty h2{font:400 23px Georgia,"Times New Roman",serif;margin:0 0 9px}
+.empty p{font-size:12px;color:var(--muted);line-height:1.65;margin:0}
+.load-cta{display:inline-flex;margin-top:17px;pointer-events:auto}
+.load-cta .file-button{background:var(--dark);color:white;border-color:var(--dark)}
+.statusbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+.status{display:flex;align-items:center;gap:8px;min-width:0}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#b9b4a9;flex:0 0 auto}
+.status-dot.good{background:var(--green)}
+.status-dot.bad{background:var(--red)}
+progress{width:150px;height:6px;vertical-align:middle;accent-color:var(--accent)}
+.hints{display:flex;gap:18px;flex-wrap:wrap;padding:13px 16px;background:#fbfaf7;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.hints b{color:#3b3932}
+.viewer-shell:fullscreen{width:100vw;height:100vh;border-radius:0;display:flex;flex-direction:column;background:var(--white)}
+.viewer-shell:fullscreen .stage{height:auto;min-height:0;flex:1}
+footer{max-width:1480px;margin:auto;padding:0 34px 30px;color:#8a867d;font-size:11px;line-height:1.6}
+@media(max-width:760px){header,main{padding-left:15px;padding-right:15px}.stage{height:58vh;min-height:340px}.viewer-head{align-items:flex-start;flex-direction:column}.toolbar{align-items:flex-start;flex-direction:column}.left-tools,.right-tools{width:100%}footer{padding-left:15px;padding-right:15px}progress{width:110px}}
+</style>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.4.0/model-viewer.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="kicker">HAD Architect · Local GLB Preview</div>
+  <h1>Marriott Hotel &amp; Residential Apartments</h1>
+  <div class="subtitle">A standalone browser test for the SketchUp-to-GLB export. Load the model from your computer, inspect its materials and orientation, and test the viewing controls before we consider adding anything to the portfolio.</div>
+  <div class="local-note"><span class="dot"></span> Local file only · the model is not uploaded to this website or GitHub</div>
+  <div id="engine" class="subtitle" style="margin-top:9px">Starting 3D viewer…</div>
+</header>
+<main>
+  <div class="toolbar">
+    <div class="left-tools">
+      <label class="file-button">Choose Marriott GLB<input id="file" type="file" accept=".glb,model/gltf-binary"></label>
+      <button id="reset">Reset View</button>
+    </div>
+    <div class="right-tools">
+      <span class="view-label">Quick views</span>
+      <button data-view="iso">Isometric</button>
+      <button data-view="front">Front</button>
+      <button data-view="back">Back</button>
+      <button data-view="left">Left</button>
+      <button data-view="right">Right</button>
+      <button data-view="top">Top</button>
+      <button data-view="bottom">Bottom</button>
+      <button id="fullscreen" class="primary">Full Screen</button>
+    </div>
+  </div>
+
+  <section class="viewer-shell" id="shell">
+    <div class="viewer-head">
+      <strong>Interactive 3D Model</strong>
+      <span id="filename">No model loaded yet</span>
+    </div>
+    <div class="stage" id="stage">
+      <model-viewer id="viewer"
+        camera-controls
+        interaction-prompt="none"
+        camera-orbit="35deg 72deg 100%"
+        camera-target="auto auto auto"
+        field-of-view="30deg"
+        shadow-intensity="0.85"
+        exposure="1.0"
+        tone-mapping="aces"
+        touch-action="none"
+        loading="eager"
+        reveal="auto"
+        alt="Marriott Hotel and Residential Apartments 3D model">
+      </model-viewer>
+      <div class="empty" id="empty">
+        <div class="empty-card">
+          <svg class="empty-icon" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M32 5 55 18v28L32 59 9 46V18L32 5Z"/><path d="M9 18l23 14 23-14M32 32v27M20 11l24 14M44 11 20 25"/></svg>
+          <h2>Load the Marriott GLB model</h2>
+          <p>Select <b>Marriott Hotel &amp; Residential Apartments.glb</b> from your computer. The 100 MB model will be read locally in your browser; it is not sent to the website.</p>
+          <div class="load-cta"><label class="file-button">Choose GLB file<input id="file-empty" type="file" accept=".glb,model/gltf-binary"></label></div>
+        </div>
+      </div>
+    </div>
+    <div class="statusbar">
+      <div class="status"><span class="status-dot" id="status-dot"></span><span id="status">Waiting for a GLB file</span></div>
+      <div><progress id="progress" max="1" value="0" hidden></progress> <span id="size">Mouse orbit · wheel zoom · right-drag / modifier-drag pan</span></div>
+    </div>
+    <div class="hints">
+      <span><b>Orbit:</b> left mouse drag</span>
+      <span><b>Zoom:</b> mouse wheel</span>
+      <span><b>Pan:</b> right mouse drag or Shift + drag</span>
+      <span><b>Recenter:</b> click a point on the model</span>
+    </div>
+  </section>
+</main>
+<footer>Preview only — not connected to the live HAD Architect portfolio. The GLB stays on your computer during this test. For best results, use Chrome or Edge on desktop. A large model may take time to decode and upload to your GPU.</footer>
+
+<script type="module">
+await customElements.whenDefined("model-viewer");
+
+const viewer=document.getElementById("viewer");
+const fileInput=document.getElementById("file");
+const emptyInput=document.getElementById("file-empty");
+const empty=document.getElementById("empty");
+const status=document.getElementById("status");
+const dot=document.getElementById("status-dot");
+const progress=document.getElementById("progress");
+const engine=document.getElementById("engine");
+const filename=document.getElementById("filename");
+const sizeLabel=document.getElementById("size");
+const shell=document.getElementById("shell");
+let objectUrl=null;
+let defaultFileName="";
+
+engine.textContent="3D engine ready — select the GLB model below.";
+engine.style.color="#53785c";
+
+function setStatus(message,type=""){
+  status.textContent=message;
+  dot.className="status-dot"+(type?" "+type:"");
+}
+function formatSize(bytes){
+  return bytes>=1024*1024?(bytes/1024/1024).toFixed(1)+" MB":(bytes/1024).toFixed(1)+" KB";
+}
+function selectView(name){
+  if(!viewer.src) return;
+  const views={
+    iso:"35deg 72deg 100%",
+    front:"0deg 75deg 100%",
+    back:"180deg 75deg 100%",
+    right:"90deg 75deg 100%",
+    left:"-90deg 75deg 100%",
+    top:"0deg 0deg 100%",
+    bottom:"0deg 180deg 100%"
+  };
+  viewer.cameraTarget="auto auto auto";
+  viewer.cameraOrbit=views[name]||views.iso;
+  if(typeof viewer.jumpCameraToGoal==="function") viewer.jumpCameraToGoal();
+}
+function loadFile(file){
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith(".glb")){
+    setStatus("Please select a binary .GLB file.","bad");
+    return;
+  }
+  if(objectUrl) URL.revokeObjectURL(objectUrl);
+  objectUrl=URL.createObjectURL(file);
+  defaultFileName=file.name;
+  filename.textContent=file.name+" · "+formatSize(file.size);
+  sizeLabel.textContent="Loading locally — no upload to the website";
+  progress.hidden=false;
+  progress.value=0;
+  empty.style.display="grid";
+  setStatus("Reading model…");
+  viewer.src=objectUrl;
+}
+fileInput.addEventListener("change",()=>loadFile(fileInput.files?.[0]));
+emptyInput.addEventListener("change",()=>loadFile(emptyInput.files?.[0]));
+document.querySelectorAll("[data-view]").forEach(button=>{
+  button.addEventListener("click",()=>selectView(button.dataset.view));
+});
+document.getElementById("reset").addEventListener("click",async()=>{
+  if(!viewer.src) return;
+  setStatus("Resetting camera…");
+  try{
+    await viewer.updateFraming();
+    selectView("iso");
+    setStatus("Model ready · "+defaultFileName,"good");
+  }catch(error){setStatus("Could not reset view: "+(error?.message||String(error)),"bad");}
+});
+document.getElementById("fullscreen").addEventListener("click",async()=>{
+  try{
+    if(document.fullscreenElement===shell) await document.exitFullscreen();
+    else await shell.requestFullscreen();
+  }catch(error){setStatus("Full Screen unavailable: "+(error?.message||String(error)),"bad");}
+});
+document.addEventListener("fullscreenchange",()=>{
+  document.getElementById("fullscreen").textContent=document.fullscreenElement===shell?"Exit Full Screen":"Full Screen";
+});
+viewer.addEventListener("progress",event=>{
+  const value=event.detail?.totalProgress??0;
+  progress.value=value;
+  if(value<1) setStatus("Loading and decoding GLB · "+Math.round(value*100)+"%");
+});
+viewer.addEventListener("load",async()=>{
+  try{
+    await viewer.updateFraming();
+    selectView("iso");
+    empty.style.display="none";
+    progress.hidden=true;
+    sizeLabel.textContent="Interactive model ready";
+    setStatus("Ready · "+defaultFileName,"good");
+  }catch(error){
+    progress.hidden=true;
+    setStatus("Model loaded but camera framing failed: "+(error?.message||String(error)),"bad");
+  }
+});
+viewer.addEventListener("error",event=>{
+  progress.hidden=true;
+  const detail=event.detail?.type||event.detail?.message||"unknown model loading error";
+  setStatus("Could not load this GLB: "+detail,"bad");
+});
+</script>
+</body>
+</html>
