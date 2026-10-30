@@ -195,9 +195,9 @@ function makeViewer(id) {
     resize();
   }
   function clear() {
-    while(group.children.length) {
-      const child=group.children.pop();
+    for (const child of [...group.children]) {
       child.traverse?.(o=>{if(o.geometry)o.geometry.dispose();});
+      group.remove(child);
     }
   }
   function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); }
@@ -259,7 +259,7 @@ async function loadModel(id,file) {
         const pg=placed.get(i);
         const ifcGeometry=api.GetGeometry(modelID,pg.geometryExpressID);
         const verts=api.GetVertexArray(ifcGeometry.GetVertexData(),ifcGeometry.GetVertexDataSize());
-        const indices=api.GetIndexArray(ifcGeometry.GetIndexData(),ifcGeometry.GetIndexDataSize());
+        const indices=new Uint32Array(api.GetIndexArray(ifcGeometry.GetIndexData(),ifcGeometry.GetIndexDataSize()));
         const positions=new Float32Array(verts.length/2);
         const normals=new Float32Array(verts.length/2);
         for(let j=0;j<verts.length;j+=6){
