@@ -280,17 +280,19 @@ const projectModelData = {
   {label:"4 Bedroom Villa",file:"EMAAR Villa Community 4BR.glb"},
   {label:"5 Bedroom Villa",file:"EMAAR Villa Community 5BR.glb"}
  ],
+ "07":[{label:"Dubai South Residential Building",file:"Dubai South Residential Building.glb"}],
  "09":[{label:"Residential G+4 1844",file:"Residential G+4 1844.glb"}]
 };
 const projectModelNotices = {
- "07":"The file supplied for Dubai South is FBX, not GLB. It is intentionally not loaded into this GLB viewer."
+ "04":"No GLB model file has been supplied for Expo Valley yet.",
+ "08":"No GLB model file has been supplied for Valley by EMAAR 1830 yet."
 };
 function safeModelName(s){return String(s||"").toLowerCase().replace(".glb","").replace(/[^a-z0-9]/g,"");}
 function renderProjectModelViewer(p){
  const models=projectModelData[p.n]||[];
  const notice=projectModelNotices[p.n];
  if(!models.length){
-  return notice?'<section class="part model-part"><div class="model-intro"><div><div class="eyebrow">3D model</div><h2>Interactive 3D model</h2></div></div><div class="model-fbx-note"><strong>Format note:</strong> '+safeText(notice)+'</div></section>':"";
+  return notice?'<section class="part model-part"><div class="model-intro"><div><div class="eyebrow">3D model</div><h2>Interactive 3D model</h2></div></div><div class="model-fbx-note"><strong>Model availability:</strong> '+safeText(notice)+'</div></section>':"";
  }
  const list=safeText(JSON.stringify(models));
  const choices=models.length>1?'<div class="model-choices">'+models.map((m,i)=>'<button class="model-choice" type="button" data-model-choice="'+i+'" aria-pressed="'+(i===0?'true':'false')+'">'+safeText(m.label)+'</button>').join("")+'</div>':'<div class="model-choices"><span class="eyebrow">'+safeText(models[0].label)+'</span></div>';
