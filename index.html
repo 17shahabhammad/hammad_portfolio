@@ -312,6 +312,7 @@ function initProjectModelViewer(section){
  let active=0,currentUrl=null;
  const setStatus=(message,type="")=>{status.textContent=message;dot.className="model-status-dot"+(type?" "+type:"");};
  const formatSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":(n/1024).toFixed(1)+" KB";
+ const fileSizeLabel=(index,fileMap,formatter)=>{const item=fileMap.get(index);return item?item.name+" · "+formatter(item.size):models[index].label;};
  const frame=async()=>{
   await viewer.updateFraming();
   if(typeof viewer.jumpCameraToGoal==="function")viewer.jumpCameraToGoal();
@@ -386,9 +387,33 @@ function initProjectModelViewer(section){
   const value=event.detail?.totalProgress??0;progress.value=value;
   if(value<1)setStatus("Loading and decoding GLB · "+Math.round(value*100)+"%");
  });
+ let unitCorrectionApplied=false;
  viewer.addEventListener("load",async()=>{
-  try{await frame();empty.hidden=true;progress.hidden=true;setStatus("Ready · "+models[active].label,"good");}
-  catch(e){progress.hidden=true;setStatus("Model loaded; camera framing issue: "+(e?.message||String(e)),"bad");}
+  try{
+   const dims=viewer.getDimensions();
+   const initialMax=Math.max(Number(dims.x)||0,Number(dims.y)||0,Number(dims.z)||0);
+   let factor=1,correction="none";
+   // glTF uses metres. Correct common SketchUp export unit mismatches only when clearly outside building scale.
+   if(initialMax>1000){factor=0.001;correction="mm → m";}
+   else if(initialMax>0&&initialMax<0.05){factor=1000;correction="small-unit → m";}
+   else if(initialMax>=0.05&&initialMax<2){factor=40/initialMax;correction="small-model normalisation";}
+   if(factor!==1&&!unitCorrectionApplied){
+    unitCorrectionApplied=true;
+    viewer.scale=factor+" "+factor+" "+factor;
+    await viewer.updateFraming();
+   }else{
+    await viewer.updateFraming();
+   }
+   viewer.jumpCameraToGoal();
+   const finalDims=viewer.getDimensions();
+   const fmt=n=>Number(n).toFixed(2);
+   const dimensions=fmt(finalDims.x)+" × "+fmt(finalDims.y)+" × "+fmt(finalDims.z)+" m";
+   empty.hidden=true;progress.hidden=true;
+   filename.textContent=fileSizeLabel(active,files,formatSize)+" · "+dimensions+(factor!==1?" · scale ×"+Number(factor.toPrecision(4)):"");
+   setStatus("Ready · "+models[active].label+(factor!==1?" · "+correction:""),"good");
+  }catch(e){
+   progress.hidden=true;setStatus("Model loaded; framing failed: "+(e?.message||String(e)),"bad");
+  }
  });
  viewer.addEventListener("error",event=>{
   progress.hidden=true;setStatus("Could not load GLB: "+(event.detail?.type||event.detail?.message||"unknown loading error"),"bad");
