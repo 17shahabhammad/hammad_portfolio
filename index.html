@@ -296,7 +296,7 @@ function renderProjectModelViewer(p){
  }
  const list=safeText(JSON.stringify(models));
  const choices=models.length>1?'<div class="model-choices">'+models.map((m,i)=>'<button class="model-choice" type="button" data-model-choice="'+i+'" aria-pressed="'+(i===0?'true':'false')+'">'+safeText(m.label)+'</button>').join("")+'</div>':'<div class="model-choices"><span class="eyebrow">'+safeText(models[0].label)+'</span></div>';
- return '<section class="part model-part" data-project-models data-model-list="'+list+'"><div class="model-intro"><div><div class="eyebrow">Explore the project</div><h2>Interactive 3D model</h2></div><p>Inspect the architectural massing in 3D. The model viewer is placed between the project render and drawing sheets.</p></div><div class="model-panel"><div class="model-toolbar">'+choices+'<div class="model-actions"><label class="model-file-button">Choose GLB file(s)<input type="file" accept=".glb,model/gltf-binary" multiple data-glb-input></label><button class="model-action" type="button" data-model-reset>Reset view</button><button class="model-action" type="button" data-model-fullscreen>Full screen</button></div></div><div class="model-stage"><model-viewer camera-controls interaction-prompt="none" camera-orbit="35deg 68deg 100%" camera-target="auto auto auto" field-of-view="32deg" min-field-of-view="15deg" max-field-of-view="60deg" orbit-sensitivity="0.8" zoom-sensitivity="0.8" pan-sensitivity="0.9" touch-action="none" shadow-intensity="0.85" exposure="1" tone-mapping="aces" loading="eager" reveal="auto" alt="'+safeText(p.title)+' interactive 3D model"></model-viewer><div class="model-empty"><div class="model-empty-inner"><h3>Load the '+safeText(models[0].label)+' model</h3><p>Select the matching GLB file from your computer. For projects with multiple models, select all GLBs for that project together, then switch between the model tabs above.</p></div></div></div><div class="model-statusbar"><div class="model-status"><span class="model-status-dot" data-model-status-dot></span><span data-model-status>Waiting for a GLB file</span></div><div><progress class="model-progress" max="1" value="0" hidden data-model-progress></progress> <span data-model-filename>Left-drag orbit · wheel zoom · right-drag pan</span></div></div><div class="model-hints"><span><b>Orbit:</b> left mouse drag</span><span><b>Zoom:</b> mouse wheel over model</span><span><b>Pan:</b> right mouse drag or Shift/Ctrl + drag</span><span><b>Pan:</b> right mouse drag or Shift + drag</span></div><div class="model-file-note">Preview mode: GLBs are selected locally for this review and are not yet hosted for recruiter access. The live portfolio has not been changed.</div></div></section>';
+ return '<section class="part model-part" data-project-models data-model-list="'+list+'"><div class="model-intro"><div><div class="eyebrow">Explore the project</div><h2>Interactive 3D model</h2></div><p>Inspect the architectural massing in 3D. The model viewer is placed between the project render and drawing sheets.</p></div><div class="model-panel"><div class="model-toolbar">'+choices+'<div class="model-actions"><label class="model-file-button">Choose GLB file(s)<input type="file" accept=".glb,model/gltf-binary" multiple data-glb-input></label><button class="model-action" type="button" data-model-reset>Reset view</button><button class="model-action" type="button" data-model-zoom-in>Zoom +</button><button class="model-action" type="button" data-model-zoom-out>Zoom −</button><button class="model-action" type="button" data-model-fullscreen>Full screen</button></div></div><div class="model-stage"><model-viewer camera-controls interaction-prompt="none" bounds="tight" camera-orbit="35deg 68deg 100%" camera-target="auto auto auto" field-of-view="32deg" min-field-of-view="2deg" max-field-of-view="75deg" min-camera-orbit="auto auto 1%" orbit-sensitivity="0.8" zoom-sensitivity="1.1" pan-sensitivity="0.9" touch-action="none" shadow-intensity="0.85" exposure="1" tone-mapping="aces" loading="eager" reveal="auto" alt="'+safeText(p.title)+' interactive 3D model"></model-viewer><div class="model-empty"><div class="model-empty-inner"><h3>Load the '+safeText(models[0].label)+' model</h3><p>Select the matching GLB file from your computer. For projects with multiple models, select all GLBs for that project together, then switch between the model tabs above.</p></div></div></div><div class="model-statusbar"><div class="model-status"><span class="model-status-dot" data-model-status-dot></span><span data-model-status>Waiting for a GLB file</span></div><div><progress class="model-progress" max="1" value="0" hidden data-model-progress></progress> <span data-model-filename>Left-drag orbit · wheel zoom · right-drag pan</span></div></div><div class="model-hints"><span><b>Orbit:</b> left mouse drag</span><span><b>Zoom:</b> scroll wheel or Zoom + / − buttons</span><span><b>Pan:</b> right mouse drag or Shift/Ctrl + drag</span></div><div class="model-file-note">Preview mode: GLBs are selected locally for this review and are not yet hosted for recruiter access. The live portfolio has not been changed.</div></div></section>';
 }
 function initProjectModelViewer(section){
  const models=JSON.parse(section.dataset.modelList||"[]");
@@ -314,8 +314,6 @@ function initProjectModelViewer(section){
  const formatSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":(n/1024).toFixed(1)+" KB";
  const frame=async()=>{
   await viewer.updateFraming();
-  viewer.cameraTarget="auto auto auto";
-  viewer.cameraOrbit="35deg 68deg auto";
   if(typeof viewer.jumpCameraToGoal==="function")viewer.jumpCameraToGoal();
  };
  const loadActive=async()=>{
@@ -364,9 +362,17 @@ function initProjectModelViewer(section){
  });
  section.querySelector("[data-model-reset]").addEventListener("click",async()=>{
   if(!viewer.src)return;
-  setStatus("Resetting camera…");
-  try{await frame();setStatus("Model ready · "+models[active].label,"good");}
-  catch(e){setStatus("Could not reset view: "+(e?.message||String(e)),"bad");}
+  setStatus("Fitting model to view…");
+  try{await frame();setStatus("Model fitted · "+models[active].label,"good");}
+  catch(e){setStatus("Could not fit model: "+(e?.message||String(e)),"bad");}
+ });
+ section.querySelector("[data-model-zoom-in]").addEventListener("click",()=>{
+  if(!viewer.src){setStatus("Load a model before zooming.");return;}
+  viewer.zoom(2);
+ });
+ section.querySelector("[data-model-zoom-out]").addEventListener("click",()=>{
+  if(!viewer.src){setStatus("Load a model before zooming.");return;}
+  viewer.zoom(-2);
  });
  section.querySelector("[data-model-fullscreen]").addEventListener("click",async()=>{
   try{if(document.fullscreenElement===panel)await document.exitFullscreen();else await panel.requestFullscreen();}
