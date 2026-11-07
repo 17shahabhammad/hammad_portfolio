@@ -320,6 +320,8 @@ function initProjectModelViewer(section){
  const loadActive=async()=>{
   const file=files.get(active);
   if(currentUrl){viewer.removeAttribute("src");URL.revokeObjectURL(currentUrl);currentUrl=null;}
+  unitCorrectionApplied=false;
+  viewer.scale="1 1 1";
   if(!file){
    viewer.removeAttribute("src");empty.hidden=false;
    empty.querySelector("h3").textContent="Load the "+models[active].label+" model";
@@ -394,9 +396,8 @@ function initProjectModelViewer(section){
    const initialMax=Math.max(Number(dims.x)||0,Number(dims.y)||0,Number(dims.z)||0);
    let factor=1,correction="none";
    // glTF uses metres. Correct common SketchUp export unit mismatches only when clearly outside building scale.
-   if(initialMax>1000){factor=0.001;correction="mm → m";}
-   else if(initialMax>0&&initialMax<0.05){factor=1000;correction="small-unit → m";}
-   else if(initialMax>=0.05&&initialMax<2){factor=40/initialMax;correction="small-model normalisation";}
+   if(initialMax>1000){factor=40/initialMax;correction="oversized-unit correction";}
+   else if(initialMax>0&&initialMax<2){factor=40/initialMax;correction="undersized-unit correction";}
    if(factor!==1&&!unitCorrectionApplied){
     unitCorrectionApplied=true;
     viewer.scale=factor+" "+factor+" "+factor;
