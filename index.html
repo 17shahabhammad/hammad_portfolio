@@ -269,9 +269,9 @@ function initProjectGallery(g){const images=JSON.parse(g.dataset.images||'[]');l
 
 const projectModelData = {
  "01":[
-  {label:"Admin Building · GA1",file:"SEDRA GA1 Admin building.glb"},
-  {label:"Gate A · GG1",file:"SEDRA GG1-Gate A.glb"},
-  {label:"Guard House · GH1",file:"SEDRA GH1-GUARD HOUSE FINAL.glb"}
+  {label:"Admin Building · GA1",file:"SEDRA GA1 Admin building.glb",cameraTheta:35,cameraPhi:58,cameraZoom:0.88},
+  {label:"Gate A · GG1",file:"SEDRA GG1-Gate A.glb",cameraTheta:35,cameraPhi:60,cameraZoom:0.96},
+  {label:"Guard House · GH1",file:"SEDRA GH1-GUARD HOUSE FINAL.glb",cameraTheta:35,cameraPhi:58,cameraZoom:0.58}
  ],
  "02":[{label:"Marriott Hotel & Residential Apartments",file:"Marriott Hotel & Residential Apartments(1).glb",aliases:["Marriott Hotel & Residential Apartments.glb"]}],
  "03":[{label:"Nad Al Hamar 1640",file:"Nad Al Hamar 1640.glb"}],
@@ -314,10 +314,15 @@ function initProjectModelViewer(section){
  const formatSize=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":(n/1024).toFixed(1)+" KB";
  const fileSizeLabel=(index,fileMap,formatter)=>{const item=fileMap.get(index);return item?item.name+" · "+formatter(item.size):models[index].label;};
  const frame=async()=>{
-  // Fit each model to the viewport first, then apply one consistent isometric angle.
+  // Fit each model first, then apply project-specific camera values only where configured.
   await viewer.updateFraming();
   const orbit=viewer.getCameraOrbit();
-  viewer.cameraOrbit="35deg 45deg "+orbit.radius+"m";
+  const modelCamera=models[active]||{};
+  const theta=Number(modelCamera.cameraTheta??35);
+  const phi=Number(modelCamera.cameraPhi??45);
+  const zoom=Number(modelCamera.cameraZoom??1);
+  const radius=orbit.radius*zoom;
+  viewer.cameraOrbit=theta+"deg "+phi+"deg "+radius+"m";
   if(typeof viewer.jumpCameraToGoal==="function")viewer.jumpCameraToGoal();
  };
  const loadActive=async()=>{
@@ -400,7 +405,7 @@ function initProjectModelViewer(section){
    const dimensions=fmt(finalDims.x)+" × "+fmt(finalDims.y)+" × "+fmt(finalDims.z)+" m";
    empty.hidden=true;progress.hidden=true;
    filename.textContent=fileSizeLabel(active,files,formatSize)+" · "+dimensions;
-   setStatus("Ready · "+models[active].label+" · top-side view","good");
+   setStatus("Ready · "+models[active].label+" · isometric view","good");
   }catch(e){
    progress.hidden=true;setStatus("Model loaded; framing failed: "+(e?.message||String(e)),"bad");
   }
